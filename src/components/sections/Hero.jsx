@@ -101,7 +101,7 @@ export default function Hero() {
       <div
         className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none"
         style={{
-          background: "linear-gradient(to top, var(--bg-primary), transparent)",
+          background: "linear-gradient(to top, rgba(7, 7, 10, 0.5), transparent)",
         }}
         aria-hidden="true"
       />

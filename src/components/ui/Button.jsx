@@ -27,13 +27,13 @@ export default function Button({
 
   const variants = {
     primary:
-      "bg-gradient-to-r from-accent-violet to-accent-cyan text-white shadow-lg shadow-accent-violet/20 hover:shadow-accent-violet/40 hover:brightness-110",
+      "bg-gradient-to-r from-accent-violet to-accent-cyan text-white shadow-lg shadow-accent-violet/25 hover:shadow-[0_0_28px_rgba(139,92,246,0.45)] hover:brightness-110",
     secondary:
-      "bg-glass-bg backdrop-blur-xl border border-glass-border text-text-primary hover:border-accent-violet/40 hover:bg-white/[0.04]",
+      "bg-glass-bg backdrop-blur-xl border border-glass-border text-text-primary hover:border-accent-violet/50 hover:shadow-[0_0_20px_rgba(139,92,246,0.2)] hover:bg-white/[0.06]",
     ghost:
       "text-text-secondary hover:text-text-primary hover:bg-white/[0.04]",
     outline:
-      "border border-border-accent text-accent-violet-light hover:bg-accent-violet/10 hover:border-accent-violet",
+      "border border-border-accent text-accent-violet-light hover:bg-accent-violet/10 hover:border-accent-violet hover:shadow-[0_0_18px_rgba(139,92,246,0.2)]",
   };
 
   const classes = `${baseClasses} ${sizes[size]} ${variants[variant]} ${className}`;

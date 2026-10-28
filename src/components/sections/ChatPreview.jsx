@@ -91,26 +91,38 @@ export default function ChatPreview() {
   const containerRef = useRef(null);
   const messagesEndRef = useRef(null);
 
-  // ScrollTrigger to start animation when section enters viewport
+  // ScrollTrigger to start animation and fade-up when section enters viewport
   useEffect(() => {
     const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (prefersReduced) {
-      // Show all messages immediately if reduced motion
+      if (containerRef.current) containerRef.current.style.opacity = "1";
       const timer = setTimeout(() => {
         setVisibleMessages(DEMO_MESSAGES);
       }, 0);
       return () => clearTimeout(timer);
     }
 
-    const trigger = ScrollTrigger.create({
-      trigger: containerRef.current,
-      start: "top 80%",
-      once: true,
-      onEnter: () => setHasPlayed(true),
-    });
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        containerRef.current,
+        { opacity: 0, y: 35 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.8,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: containerRef.current,
+            start: "top 85%",
+            once: true,
+            onEnter: () => setHasPlayed(true),
+          },
+        }
+      );
+    }, containerRef);
 
-    return () => trigger.kill();
+    return () => ctx.revert();
   }, []);
 
   // Animate messages sequentially

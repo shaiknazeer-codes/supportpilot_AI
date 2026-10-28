@@ -101,7 +101,13 @@ body {
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
+  transition: border-color 0.35s ease, box-shadow 0.35s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
+.glass-card:hover {
+  border-color: rgba(139, 92, 246, 0.28);
+  box-shadow: 0 8px 32px -8px rgba(139, 92, 246, 0.15);
+}
+
 
 /* ── Gradient text ── */
 .gradient-text {
@@ -172,14 +178,36 @@ body {
 
 /* ── Section separator ── */
 .section-divider {
+  position: relative;
   height: 1px;
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(139, 92, 246, 0.2) 30%,
-    rgba(6, 182, 212, 0.2) 70%,
+    rgba(139, 92, 246, 0.25) 25%,
+    rgba(6, 182, 212, 0.25) 75%,
     transparent
   );
+  overflow: hidden;
+}
+.section-divider::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -50%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.35),
+    rgba(139, 92, 246, 0.5),
+    transparent
+  );
+  animation: beamShimmer 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@keyframes beamShimmer {
+  0% { left: -50%; }
+  100% { left: 150%; }
 }
 
 /* ── Chat bubble animation ── */
@@ -253,4 +281,63 @@ textarea:focus-visible {
   outline-offset: 2px !important;
   box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.25) !important;
 }
+
+/* ── Ambient Background Drift Keyframes ── */
+@keyframes ambientDrift1 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(45px, 35px) scale(1.08); }
+  100% { transform: translate(-30px, 60px) scale(0.96); }
+}
+
+@keyframes ambientDrift2 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(-50px, -40px) scale(1.06); }
+  100% { transform: translate(25px, 45px) scale(0.94); }
+}
+
+@keyframes ambientDrift3 {
+  0% { transform: translate(0px, 0px) scale(0.98); }
+  50% { transform: translate(35px, -30px) scale(1.05); }
+  100% { transform: translate(-25px, 20px) scale(1); }
+}
+
+@keyframes ambientDrift4 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(-30px, 40px) scale(1.07); }
+  100% { transform: translate(40px, -25px) scale(0.95); }
+}
+
+.animate-ambient-drift-1 {
+  animation: ambientDrift1 22s ease-in-out infinite alternate;
+}
+.animate-ambient-drift-2 {
+  animation: ambientDrift2 26s ease-in-out infinite alternate;
+}
+.animate-ambient-drift-3 {
+  animation: ambientDrift3 20s ease-in-out infinite alternate;
+}
+.animate-ambient-drift-4 {
+  animation: ambientDrift4 24s ease-in-out infinite alternate;
+}
+
+/* ── Subtle Interactive Glows & Transitions ── */
+.hover-glow-card {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.35s ease,
+              box-shadow 0.35s ease;
+}
+.hover-glow-card:hover {
+  box-shadow: 0 12px 35px -10px rgba(139, 92, 246, 0.2),
+              0 0 1px 1px rgba(139, 92, 246, 0.35);
+  border-color: rgba(139, 92, 246, 0.35);
+}
+
+.hover-glow-button {
+  transition: box-shadow 0.3s ease, filter 0.3s ease, transform 0.3s ease;
+}
+.hover-glow-button:hover {
+  box-shadow: 0 0 25px rgba(139, 92, 246, 0.4),
+              0 0 50px rgba(6, 182, 212, 0.2);
+}
+
 

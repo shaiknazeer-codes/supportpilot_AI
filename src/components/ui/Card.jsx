@@ -17,6 +17,7 @@ export default function Card({
     <motion.div
       className={`
         glass-card p-6 
+        ${hover ? "hover-glow-card" : ""}
         ${gradientBorder ? "gradient-border" : ""}
         ${glow ? "glow-violet" : ""}
         ${className}
