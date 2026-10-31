@@ -1,6 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
+
+const MotionLink = motion.create(Link);
 
 /**
  * Reusable button component with multiple variants.
@@ -45,16 +48,45 @@ export default function Button({
   };
 
   if (href) {
+    const isAnchor = href.startsWith("#");
+    const isExternal =
+      href.startsWith("http://") ||
+      href.startsWith("https://") ||
+      href.startsWith("mailto:");
+
+    if (isExternal || isAnchor) {
+      return (
+        <motion.a
+          href={href}
+          onClick={onClick}
+          className={classes}
+          {...motionProps}
+          {...(isExternal ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+          {...props}
+        >
+          {icon && <span className="w-4 h-4">{icon}</span>}
+          {children}
+        </motion.a>
+      );
+    }
+
     return (
-      <motion.a href={href} className={classes} {...motionProps} {...props}>
+      <MotionLink
+        href={href}
+        onClick={onClick}
+        className={classes}
+        {...motionProps}
+        {...props}
+      >
         {icon && <span className="w-4 h-4">{icon}</span>}
         {children}
-      </motion.a>
+      </MotionLink>
     );
   }
 
   return (
     <motion.button
+      type="button"
       onClick={onClick}
       className={classes}
       {...motionProps}

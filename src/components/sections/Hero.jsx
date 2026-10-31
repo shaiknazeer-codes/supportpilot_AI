@@ -132,12 +132,30 @@ export default function Hero() {
     });
   };
 
+  // Smooth scroll to How It Works section
+  const handleScrollToHowItWorks = (e) => {
+    e?.preventDefault?.();
+    const target =
+      document.getElementById("storytelling") ||
+      document.getElementById("features");
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   useEffect(() => {
     const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (prefersReduced) {
-      if (introLayerRef.current) introLayerRef.current.style.display = "none";
-      if (mainContentRef.current) mainContentRef.current.style.opacity = "1";
+      if (introLayerRef.current) {
+        introLayerRef.current.style.display = "none";
+        introLayerRef.current.style.pointerEvents = "none";
+      }
+      if (mainContentRef.current) {
+        mainContentRef.current.style.opacity = "1";
+        mainContentRef.current.style.visibility = "visible";
+        mainContentRef.current.style.pointerEvents = "auto";
+      }
       if (hudNode1Ref.current) hudNode1Ref.current.style.opacity = "1";
       if (hudNode2Ref.current) hudNode2Ref.current.style.opacity = "1";
       return;
@@ -195,11 +213,12 @@ export default function Hero() {
       tl.to(
         introLayerRef.current,
         {
-          opacity: 0,
+          autoAlpha: 0,
           y: -50,
           scale: 0.94,
           ease: "power2.inOut",
           duration: 1.2,
+          pointerEvents: "none",
         },
         0
       );
@@ -249,16 +268,18 @@ export default function Hero() {
       tl.fromTo(
         mainContentRef.current,
         {
-          opacity: 0,
+          autoAlpha: 0,
           y: 60,
           scale: 0.94,
+          pointerEvents: "none",
         },
         {
-          opacity: 1,
+          autoAlpha: 1,
           y: 0,
           scale: 1,
           ease: "power3.out",
           duration: 1.8,
+          pointerEvents: "auto",
         },
         1.2
       );
@@ -476,7 +497,7 @@ export default function Hero() {
       {/* ── 5. STAGE B: MAIN PAGE HERO (REVEALED AS YOU SCROLL) ── */}
       <div
         ref={mainContentRef}
-        className="absolute inset-0 z-10 flex items-center justify-center pt-16 px-4 sm:px-6 lg:px-8 text-center pointer-events-auto opacity-0"
+        className="absolute inset-0 z-30 flex items-center justify-center pt-16 px-4 sm:px-6 lg:px-8 text-center pointer-events-none opacity-0 invisible"
       >
         <div className="max-w-5xl mx-auto">
           {/* Badge */}
@@ -502,7 +523,12 @@ export default function Hero() {
             <Button variant="primary" size="lg" href="/chat" icon={<ArrowRight className="w-4 h-4" />}>
               Try AI Assistant
             </Button>
-            <Button variant="secondary" size="lg" href="#features">
+            <Button
+              variant="secondary"
+              size="lg"
+              href="#storytelling"
+              onClick={handleScrollToHowItWorks}
+            >
               See How It Works
             </Button>
           </div>
