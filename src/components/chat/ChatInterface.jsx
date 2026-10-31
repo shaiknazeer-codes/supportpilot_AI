@@ -21,6 +21,9 @@ import {
   Clock,
   Database,
   Check,
+  Film,
+  MapPin,
+  Ticket,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 
@@ -36,6 +39,11 @@ function createMessageId(role) {
 }
 
 const SUGGESTED_PROMPTS = [
+  {
+    title: "🎬 Book Movie Tickets",
+    prompt: "I want to book movie tickets. What movies are currently playing?",
+    category: "Movies",
+  },
   {
     title: "Check Slot Availability",
     prompt: "Can you check available consultation appointment slots for next Monday?",
@@ -63,6 +71,176 @@ const SUGGESTED_PROMPTS = [
  */
 function ActionCard({ action, onSelectSlot }) {
   const { toolName, result, success } = action;
+
+  if (toolName === "getMovieShowtimes") {
+    if (!success) {
+      return (
+        <div className="mt-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+          <span>{result?.message || "Could not fetch movie showtimes."}</span>
+        </div>
+      );
+    }
+
+    // Stage 1: Movies List
+    if (result?.movies && result.movies.length > 0) {
+      return (
+        <div className="mt-3 p-3.5 rounded-xl bg-accent-violet/10 border border-accent-violet/30 text-xs text-text-primary">
+          <div className="flex items-center gap-2 mb-2 font-semibold text-accent-violet-light">
+            <Film className="w-4 h-4 text-accent-cyan" />
+            <span>Currently Screening in Theaters</span>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-accent-violet/20 text-accent-violet-light ml-auto">
+              Live Catalog
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+            {result.movies.map((m) => (
+              <div
+                key={m.title}
+                className="p-2.5 rounded-lg bg-bg-primary/80 border border-white/5 flex flex-col justify-between"
+              >
+                <div>
+                  <span className="font-semibold text-text-primary text-[12px] block">
+                    {m.title}
+                  </span>
+                  <span className="text-[10px] text-text-muted block mt-0.5">
+                    {m.genre} · {m.duration} · {m.rating}
+                  </span>
+                </div>
+                <div className="mt-2 text-[10px] text-accent-cyan">
+                  {m.theatersAvailable?.length || 3} Theaters Available
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Stage 2 & 3: Theaters and Showtimes
+    if (result?.theaters && result.theaters.length > 0) {
+      return (
+        <div className="mt-3 p-3.5 rounded-xl bg-accent-cyan/10 border border-accent-cyan/30 text-xs text-text-primary">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5 font-semibold text-accent-cyan-light">
+              <Film className="w-4 h-4 text-accent-cyan" />
+              <span>{result.movie} — Cinema Showtimes</span>
+            </div>
+            {result.rating && (
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-text-secondary">
+                {result.rating} · {result.duration}
+              </span>
+            )}
+          </div>
+          <div className="space-y-2.5 mt-2">
+            {result.theaters.map((t) => (
+              <div
+                key={t.name}
+                className="p-2.5 rounded-lg bg-bg-primary/90 border border-border-subtle"
+              >
+                <div className="flex items-start justify-between gap-2 mb-1.5">
+                  <div>
+                    <span className="font-semibold text-text-primary flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-accent-violet-light" />
+                      {t.name}
+                    </span>
+                    <span className="text-[10px] text-text-muted block">{t.location}</span>
+                  </div>
+                  <span className="text-[11px] font-mono font-medium text-emerald-400">
+                    {t.price}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                  {t.timings?.map((timing) => (
+                    <button
+                      key={timing}
+                      type="button"
+                      onClick={() => onSelectSlot && onSelectSlot(`${timing} at ${t.name}`, result.movie)}
+                      className="px-2 py-1 rounded bg-accent-cyan/15 hover:bg-accent-cyan/30 border border-accent-cyan/30 text-[10px] font-mono text-accent-cyan-light hover:text-white transition-all cursor-pointer"
+                      title="Click to select showtime"
+                    >
+                      {timing}
+                    </button>
+                  ))}
+                  <span className="text-[10px] text-text-muted ml-auto font-mono">
+                    {t.formats?.join(" · ")}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+  }
+
+  if (toolName === "bookMovieTicket" || (toolName === "createBooking" && (result?.movie || result?.bookingType === "movie_ticket"))) {
+    if (result?.requiresConfirmation) {
+      return (
+        <div className="mt-3 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs">
+          <div className="flex items-center gap-2 font-semibold text-amber-300 mb-1.5">
+            <Ticket className="w-4 h-4 text-amber-400" />
+            <span>Movie Ticket Confirmation Requested</span>
+          </div>
+          <p className="text-text-muted text-[11px]">
+            {result?.message || `Ready to book ${result?.pendingDetails?.movie} at ${result?.pendingDetails?.theater}. Reply 'Confirm' to finalize.`}
+          </p>
+        </div>
+      );
+    }
+
+    if (success && result?.bookingId) {
+      return (
+        <div className="mt-3 p-4 rounded-xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-accent-cyan/15 border border-emerald-500/40 text-xs shadow-lg">
+          <div className="flex items-center justify-between mb-2 pb-2 border-b border-emerald-500/20">
+            <div className="flex items-center gap-2 font-bold text-emerald-300">
+              <Ticket className="w-4 h-4 text-emerald-400" />
+              <span>Movie Ticket Confirmed in MongoDB</span>
+            </div>
+            <span className="font-mono text-[11px] px-2.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-600 font-bold">
+              {result.bookingId}
+            </span>
+          </div>
+
+          <div className="space-y-1.5 mt-2">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm font-bold text-text-primary tracking-tight">
+                🎬 {result.movie}
+              </span>
+              <span className="text-[11px] font-mono text-emerald-400 font-semibold">
+                {result.seatsCount ? `${result.seatsCount} Seats` : "Confirmed"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-text-muted text-[11px] pt-1">
+              <div>
+                <span className="text-text-secondary font-medium">Cinema: </span>
+                {result.theater}
+              </div>
+              <div>
+                <span className="text-text-secondary font-medium">Showtime: </span>
+                {result.showtime}
+              </div>
+              {result.seatNumbers && (
+                <div className="col-span-2">
+                  <span className="text-text-secondary font-medium">Assigned Seats: </span>
+                  <span className="text-accent-cyan-light font-mono font-medium">{result.seatNumbers}</span>
+                </div>
+              )}
+              <div>
+                <span className="text-text-secondary font-medium">Customer: </span>
+                {result.customerName}
+              </div>
+              <div>
+                <span className="text-text-secondary font-medium">Email: </span>
+                {result.customerEmail}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+  }
 
   if (toolName === "checkAvailability") {
     // If the database query failed or database is not active

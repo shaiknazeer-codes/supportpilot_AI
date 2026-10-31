@@ -6,6 +6,91 @@ export const SUPPORT_TOOLS = [
   {
     type: "function",
     function: {
+      name: "getMovieShowtimes",
+      description:
+        "Fetches currently screening movies, available theaters/locations, and show timings. When called with no arguments, returns all running movies. When given a movie name, returns the cinema locations/theaters where that movie is screening. When given a theater, returns showtimes and formats.",
+      parameters: {
+        type: "object",
+        properties: {
+          movie: {
+            type: "string",
+            description: "Title or partial name of the movie (e.g. 'Dune', 'Inception', 'Deadpool & Wolverine', 'Interstellar', 'Gladiator II').",
+          },
+          theaterOrLocation: {
+            type: "string",
+            description: "Cinema or location name (e.g. 'Downtown IMAX', 'Grand Plaza', 'CineStar', 'PVR Orion').",
+          },
+          date: {
+            type: "string",
+            description: "Date of the show in YYYY-MM-DD format (defaults to today/tomorrow).",
+          },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "bookMovieTicket",
+      description:
+        "Books confirmed movie tickets and saves the reservation directly into the MongoDB database. REQUIRES that the customer has explicitly confirmed the movie title, cinema theater, show timing, and ticket/seat count.",
+      parameters: {
+        type: "object",
+        properties: {
+          movie: {
+            type: "string",
+            description: "The title of the movie (e.g., 'Dune: Part Two', 'Inception').",
+          },
+          theater: {
+            type: "string",
+            description: "Cinema or theater name (e.g., 'Downtown IMAX Cinema').",
+          },
+          location: {
+            type: "string",
+            description: "Location or address of the theater (e.g., 'Downtown Center, Mall Level 3').",
+          },
+          showtime: {
+            type: "string",
+            description: "Selected show timing (e.g., '06:00 PM' or ISO datetime).",
+          },
+          showDate: {
+            type: "string",
+            description: "Date of the movie show in YYYY-MM-DD format.",
+          },
+          seatsCount: {
+            type: "number",
+            description: "Number of tickets/seats to book (default 1).",
+            default: 1,
+          },
+          seatNumbers: {
+            type: "string",
+            description: "Optional seat identifiers (e.g. 'Seats E11, E12').",
+          },
+          customerName: {
+            type: "string",
+            description: "Full name of the customer.",
+          },
+          customerEmail: {
+            type: "string",
+            description: "Valid customer email address for ticket delivery.",
+          },
+          customerPhone: {
+            type: "string",
+            description: "Optional customer phone number.",
+          },
+          userConfirmed: {
+            type: "boolean",
+            description:
+              "Must be true. Has the customer explicitly stated 'yes' or confirmed the movie, theater, showtime, and seat count? If not confirmed yet, do not set to true.",
+          },
+        },
+        required: ["movie", "theater", "showtime", "customerName", "customerEmail", "userConfirmed"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "checkAvailability",
       description:
         "Check real available consultation and appointment slots for a requested date from the live booking system. Returns only valid, unbooked business hour slots. Never invent availability.",
@@ -197,6 +282,8 @@ export const SUPPORT_TOOLS = [
 ];
 
 export const SUPPORT_TOOLS_WHITELIST = [
+  "getMovieShowtimes",
+  "bookMovieTicket",
   "checkAvailability",
   "createBooking",
   "createTicket",

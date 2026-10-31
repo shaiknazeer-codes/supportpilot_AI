@@ -8,6 +8,7 @@ import {
   isValidEmail,
   isValidDate,
 } from "../db/validators.js";
+import { MOVIE_CATALOG } from "./knowledgeBase.js";
 
 /**
  * Standard business hour slot templates for weekday scheduling (UTC).
@@ -529,6 +530,240 @@ export async function executeEscalateToHuman(args) {
 }
 
 /**
+ * Tool: getMovieShowtimes
+ * Returns running movies, theaters/locations where they are playing, and show timings.
+ */
+export async function executeGetMovieShowtimes(args = {}) {
+  const { movie, theaterOrLocation } = args;
+
+  // If no movie is provided, return all currently showing movies
+  if (!movie || !movie.trim()) {
+    const moviesSummary = MOVIE_CATALOG.map((m) => ({
+      title: m.title,
+      genre: m.genre,
+      duration: m.duration,
+      rating: m.rating,
+      theatersAvailable: m.theaters.map((t) => t.name),
+    }));
+    return {
+      success: true,
+      stage: "select_movie",
+      count: moviesSummary.length,
+      movies: moviesSummary,
+      message:
+        "Here are the movies currently screening. Please select a movie to view available cinema locations and showtimes.",
+    };
+  }
+
+  const queryMovie = movie.trim().toLowerCase();
+  const matchedMovie = MOVIE_CATALOG.find((m) =>
+    m.title.toLowerCase().includes(queryMovie) || queryMovie.includes(m.id)
+  );
+
+  if (!matchedMovie) {
+    return {
+      success: false,
+      error: "MOVIE_NOT_FOUND",
+      message: `We could not find '${movie}' in currently screening movies. Currently playing: ${MOVIE_CATALOG.map((m) => m.title).join(", ")}.`,
+      availableMovies: MOVIE_CATALOG.map((m) => m.title),
+    };
+  }
+
+  // If theaterOrLocation is specified, filter to that theater
+  let theaters = matchedMovie.theaters;
+  if (theaterOrLocation && theaterOrLocation.trim()) {
+    const queryLoc = theaterOrLocation.trim().toLowerCase();
+    const filtered = theaters.filter(
+      (t) =>
+        t.name.toLowerCase().includes(queryLoc) ||
+        t.location.toLowerCase().includes(queryLoc)
+    );
+    if (filtered.length > 0) {
+      theaters = filtered;
+    }
+  }
+
+  return {
+    success: true,
+    stage: theaterOrLocation ? "select_timing" : "select_location",
+    movie: matchedMovie.title,
+    genre: matchedMovie.genre,
+    duration: matchedMovie.duration,
+    rating: matchedMovie.rating,
+    theaters: theaters.map((t) => ({
+      name: t.name,
+      location: t.location,
+      formats: t.formats,
+      price: t.price,
+      timings: t.timings,
+    })),
+    message: `Found ${theaters.length} cinema location(s) screening '${matchedMovie.title}'.`,
+  };
+}
+
+/**
+ * Tool: bookMovieTicket
+ * Validates movie booking, requires explicit customer confirmation, and persists to MongoDB.
+ */
+export async function executeBookMovieTicket(args) {
+  if (!args || typeof args !== "object") {
+    return {
+      success: false,
+      error: "INVALID_ARGUMENTS",
+      message: "Booking arguments missing.",
+    };
+  }
+
+  const {
+    movie,
+    theater,
+    location,
+    showtime,
+    showDate,
+    seatsCount = 1,
+    seatNumbers,
+    customerName,
+    customerEmail,
+    customerPhone,
+    userConfirmed,
+    channel = "website",
+  } = args;
+
+  if (!movie || !theater || !showtime) {
+    return {
+      success: false,
+      error: "MISSING_DETAILS",
+      message: "Movie title, cinema theater, and showtime are required to book tickets.",
+    };
+  }
+
+  // Enforce customer confirmation
+  if (userConfirmed !== true) {
+    return {
+      success: false,
+      requiresConfirmation: true,
+      pendingDetails: {
+        movie,
+        theater,
+        location: location || "Main Complex",
+        showtime,
+        showDate: showDate || new Date().toISOString().slice(0, 10),
+        seatsCount: Number(seatsCount) || 1,
+        seatNumbers: seatNumbers || "Standard Reserved Row E",
+        customerName: customerName || "Customer",
+        customerEmail: customerEmail || "",
+      },
+      message: `Movie ticket reservation is pending your confirmation. Movie: ${movie}, Cinema: ${theater}, Showtime: ${showtime}, Seats: ${seatsCount || 1}. Please confirm to reserve your seats!`,
+    };
+  }
+
+  if (!customerName || typeof customerName !== "string" || customerName.trim().length < 2) {
+    return {
+      success: false,
+      error: "INVALID_NAME",
+      message: "Please provide a valid customer name for the ticket reservation.",
+    };
+  }
+
+  if (!customerEmail || !isValidEmail(customerEmail)) {
+    return {
+      success: false,
+      error: "INVALID_EMAIL",
+      message: "Please provide a valid customer email address to receive your tickets.",
+    };
+  }
+
+  const bookingId = generateUniqueId("BK-MOV");
+  const count = Number(seatsCount) || 1;
+  const parsedDate = showDate && isValidDate(showDate) ? new Date(showDate) : new Date();
+
+  const movieTopic = `Movie: ${movie.trim()} @ ${theater.trim()} (${count} Ticket${count > 1 ? "s" : ""}, ${showtime.trim()})`;
+  const assignedSeats =
+    seatNumbers ||
+    `Row F (Seats ${Math.floor(Math.random() * 8) + 1} - ${Math.floor(Math.random() * 8) + count})`;
+
+  const ticketDocument = {
+    bookingId,
+    customerName: customerName.trim(),
+    customerEmail: customerEmail.trim().toLowerCase(),
+    customerPhone: customerPhone ? customerPhone.trim() : null,
+    movie: movie.trim(),
+    theater: theater.trim(),
+    location: location ? location.trim() : "Main Theater Complex",
+    showtime: showtime.trim(),
+    showDate: parsedDate.toISOString().slice(0, 10),
+    scheduledAt: parsedDate,
+    durationMinutes: 150,
+    seatsCount: count,
+    seatNumbers: assignedSeats,
+    topic: movieTopic,
+    bookingType: "movie_ticket",
+    status: "confirmed",
+    channel: channel === "whatsapp" ? "whatsapp" : "website",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  if (!isMongoDBConfigured()) {
+    return {
+      success: true,
+      bookingId,
+      movie: ticketDocument.movie,
+      theater: ticketDocument.theater,
+      location: ticketDocument.location,
+      showtime: ticketDocument.showtime,
+      seatsCount: count,
+      seatNumbers: assignedSeats,
+      customerName: ticketDocument.customerName,
+      customerEmail: ticketDocument.customerEmail,
+      topic: movieTopic,
+      status: "confirmed",
+      dbActive: false,
+      message: `🎟️ Movie tickets successfully booked! Booking ID: ${bookingId}. Your digital pass for '${movie}' at ${theater} has been confirmed.`,
+    };
+  }
+
+  try {
+    const db = await getDatabase();
+    await ensureIndexes(db);
+
+    const insertResult = await db.collection(COLLECTIONS.BOOKINGS).insertOne(ticketDocument);
+
+    if (!insertResult.acknowledged) {
+      return {
+        success: false,
+        error: "WRITE_FAILED",
+        message: "Database failed to persist movie ticket booking.",
+      };
+    }
+
+    return {
+      success: true,
+      bookingId,
+      movie: ticketDocument.movie,
+      theater: ticketDocument.theater,
+      location: ticketDocument.location,
+      showtime: ticketDocument.showtime,
+      seatsCount: count,
+      seatNumbers: assignedSeats,
+      customerName: ticketDocument.customerName,
+      customerEmail: ticketDocument.customerEmail,
+      topic: movieTopic,
+      status: "confirmed",
+      dbActive: true,
+      message: `🎟️ Movie tickets successfully booked and saved in database! Booking ID: ${bookingId}. Your digital pass for '${movie}' at ${theater} is confirmed.`,
+    };
+  } catch (error) {
+    console.error("[bookMovieTicket Error]:", error);
+    return {
+      success: false,
+      error: "DATABASE_ERROR",
+      message: error.message || "Failed to save movie ticket in database.",
+    };
+  }
+}
+
+/**
  * Dispatcher for all supported tool executions.
  * Accepts optional context object ({ channel, customerPhone, customerEmail, ... }).
  */
@@ -553,6 +788,10 @@ export async function executeToolCall(toolName, rawArgs, context = {}) {
   }
 
   switch (toolName) {
+    case "getMovieShowtimes":
+      return await executeGetMovieShowtimes(args);
+    case "bookMovieTicket":
+      return await executeBookMovieTicket(args);
     case "checkAvailability":
       return await executeCheckAvailability(args);
     case "createBooking":

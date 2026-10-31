@@ -46,20 +46,26 @@ export function validateBookingInput(body) {
     return { valid: false, error: "A valid customerEmail is required." };
   }
 
-  if (!scheduledAt || !isValidDate(scheduledAt)) {
+  // Handle scheduledAt or fallback to current/show date if movie booking
+  let scheduledDate = null;
+  if (scheduledAt && isValidDate(scheduledAt)) {
+    scheduledDate = new Date(scheduledAt);
+  } else if (body.showDate && isValidDate(body.showDate)) {
+    scheduledDate = new Date(body.showDate);
+  } else if (body.movie) {
+    scheduledDate = new Date();
+  } else {
     return { valid: false, error: "scheduledAt must be a valid future ISO datetime string." };
   }
 
-  const scheduledDate = new Date(scheduledAt);
-  // Optional warning or check: allow recent past for testing, but ideally future dates
-  const parsedDuration = Number(durationMinutes) || 30;
-  if (parsedDuration < 15 || parsedDuration > 240) {
-    return { valid: false, error: "durationMinutes must be between 15 and 240 minutes." };
-  }
-
+  const parsedDuration = Number(durationMinutes) || 120;
   const allowedStatuses = ["pending", "confirmed", "rescheduled", "cancelled", "completed"];
   const status = body.status && allowedStatuses.includes(body.status) ? body.status : "confirmed";
   const channel = body.channel === "whatsapp" ? "whatsapp" : "website";
+
+  const defaultTopic = body.movie
+    ? `Movie: ${body.movie}${body.theater ? ` @ ${body.theater}` : ""} (${body.seatsCount || 1} Tickets)`
+    : "General Consultation";
 
   return {
     valid: true,
@@ -69,10 +75,17 @@ export function validateBookingInput(body) {
       customerPhone: typeof customerPhone === "string" ? customerPhone.trim() : null,
       scheduledAt: scheduledDate,
       durationMinutes: parsedDuration,
-      topic: typeof topic === "string" && topic.trim() ? topic.trim() : "General Consultation",
+      topic: typeof topic === "string" && topic.trim() ? topic.trim() : defaultTopic,
       notes: typeof notes === "string" ? notes.trim() : "",
       status: status,
       channel: channel,
+      movie: typeof body.movie === "string" ? body.movie.trim() : null,
+      theater: typeof body.theater === "string" ? body.theater.trim() : null,
+      location: typeof body.location === "string" ? body.location.trim() : null,
+      showtime: typeof body.showtime === "string" ? body.showtime.trim() : null,
+      seatsCount: Number(body.seatsCount) || 1,
+      seatNumbers: typeof body.seatNumbers === "string" ? body.seatNumbers.trim() : null,
+      bookingType: body.movie ? "movie_ticket" : (body.bookingType || "consultation"),
     },
   };
 }

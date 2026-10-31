@@ -2,18 +2,244 @@ import { getAIClient, getAIModel, getAIProvider } from "./client.js";
 import { SYSTEM_PROMPT } from "./prompts.js";
 import { SUPPORT_TOOLS, SUPPORT_TOOLS_WHITELIST } from "./tools.js";
 import { executeToolCall } from "./toolExecutors.js";
+import { MOVIE_CATALOG } from "./knowledgeBase.js";
 
 /**
  * Autonomous operations fallback when AI provider quota or rate limit is reached.
  * Executes the real backend customer operation tools (bookings, tickets, leads, availability, escalation)
  * ensuring operations run directly without inventing data.
  */
-export async function handleAutonomousFallback(userPrompt, activeModel = "Autonomous Engine", context = {}) {
+export async function handleAutonomousFallback(userPrompt, activeModel = "Autonomous Engine", context = {}, conversationHistory = []) {
   const lower = (userPrompt || "").toLowerCase();
   const executedToolActions = [];
   let reply = "";
 
-  if (lower.includes("slot") || lower.includes("availab") || (lower.includes("schedule") && !lower.includes("book"))) {
+  // Combine user messages to accurately detect customer intent and explicit selections
+  const userMessagesText = (
+    conversationHistory
+      .filter((m) => m.role === "user")
+      .map((m) => m.content || "")
+      .join(" ") + " " + (userPrompt || "")
+  ).toLowerCase();
+
+  // Detect Movie Ticket Booking Intent
+  const isMovieIntent =
+    userMessagesText.includes("ticket") ||
+    userMessagesText.includes("movie") ||
+    userMessagesText.includes("cinema") ||
+    userMessagesText.includes("theatre") ||
+    userMessagesText.includes("theater") ||
+    userMessagesText.includes("showtime") ||
+    userMessagesText.includes("timing") ||
+    userMessagesText.includes("seat") ||
+    MOVIE_CATALOG.some(
+      (m) => userMessagesText.includes(m.title.toLowerCase()) || userMessagesText.includes(m.id)
+    );
+
+  const isConsultationBooking =
+    (lower.includes("demo") || lower.includes("onboarding") || lower.includes("consultation")) &&
+    !userMessagesText.includes("movie") &&
+    !userMessagesText.includes("ticket");
+
+  if (isMovieIntent && !isConsultationBooking && !lower.includes("bug") && !lower.includes("error") && !lower.includes("504")) {
+    // 1. Identify if a movie has been chosen by the customer
+    let selectedMovie = null;
+    for (const m of MOVIE_CATALOG) {
+      const titleLower = m.title.toLowerCase();
+      const firstWord = titleLower.split(/[: ]/)[0];
+      if (
+        userMessagesText.includes(titleLower) ||
+        userMessagesText.includes(m.id) ||
+        (firstWord.length > 3 && userMessagesText.includes(firstWord))
+      ) {
+        selectedMovie = m;
+        break;
+      }
+    }
+
+    // 2. Identify if a theater/location has been chosen by the customer
+    let selectedTheater = null;
+    if (selectedMovie) {
+      for (const t of selectedMovie.theaters) {
+        const tLower = t.name.toLowerCase();
+        if (
+          userMessagesText.includes(tLower) ||
+          (tLower.includes("imax") && userMessagesText.includes("imax")) ||
+          (tLower.includes("grand plaza") && (userMessagesText.includes("grand") || userMessagesText.includes("plaza"))) ||
+          (tLower.includes("cinestar") && userMessagesText.includes("cinestar")) ||
+          (tLower.includes("pvr") && (userMessagesText.includes("pvr") || userMessagesText.includes("orion")))
+        ) {
+          selectedTheater = t;
+          break;
+        }
+      }
+    }
+
+    // 3. Identify if a showtime has been chosen by the customer
+    let selectedTiming = null;
+    if (selectedTheater) {
+      for (const timing of selectedTheater.timings) {
+        const timeDigits = timing.split(" ")[0].replace(/^0/, "");
+        if (userMessagesText.includes(timing.toLowerCase()) || userMessagesText.includes(timeDigits)) {
+          selectedTiming = timing;
+          break;
+        }
+      }
+      if (!selectedTiming) {
+        if (userMessagesText.includes("morning")) selectedTiming = selectedTheater.timings[0];
+        else if (userMessagesText.includes("matinee") || userMessagesText.includes("afternoon"))
+          selectedTiming = selectedTheater.timings[1] || selectedTheater.timings[0];
+        else if (userMessagesText.includes("evening"))
+          selectedTiming = selectedTheater.timings[2] || selectedTheater.timings[1];
+        else if (userMessagesText.includes("night") || userMessagesText.includes("late"))
+          selectedTiming = selectedTheater.timings[selectedTheater.timings.length - 1];
+      }
+    }
+
+    // 4. Check for confirmation intent
+    const isConfirmed =
+      lower.includes("confirm") ||
+      lower.includes("yes") ||
+      lower.includes("proceed") ||
+      lower.includes("agree") ||
+      lower.includes("book it") ||
+      lower.includes("sure");
+
+    // Extract customer details and seat count
+    const emailMatch = userMessagesText.match(/[\w.-]+@[\w.-]+\.\w+/);
+    const email = emailMatch ? emailMatch[0] : (context.customerEmail || "customer@example.com");
+    const nameMatch =
+      userPrompt.match(/for ([A-Z][a-z]+ [A-Z][a-z]+)/) ||
+      userPrompt.match(/my name is ([A-Z][a-z]+)/i);
+    const customerName = nameMatch ? (nameMatch[1] || nameMatch[0]) : (context.customerName || "Movie Guest");
+    const seatsMatch = userMessagesText.match(/(\d+)\s*(tickets?|seats?)/);
+    const seatsCount = seatsMatch ? parseInt(seatsMatch[1], 10) : 2;
+
+    // STEP 1: If movie is not specified, ask which movie and list currently playing movies
+    if (!selectedMovie) {
+      const toolResult = await executeToolCall("getMovieShowtimes", JSON.stringify({}), context);
+      executedToolActions.push({
+        toolName: "getMovieShowtimes",
+        args: {},
+        result: toolResult,
+        success: toolResult.success,
+      });
+
+      reply =
+        `🎬 **Which movie would you like to watch?**\n\n` +
+        `Here are the top movies currently screening in theaters:\n` +
+        MOVIE_CATALOG.map(
+          (m, i) => `${i + 1}. **${m.title}** (${m.genre} · ${m.duration} · ${m.rating})`
+        ).join("\n") +
+        `\n\nPlease let me know which movie you'd like to book tickets for!`;
+    }
+    // STEP 2: Once movie is chosen, show cinema locations where it is available
+    else if (!selectedTheater) {
+      const toolResult = await executeToolCall(
+        "getMovieShowtimes",
+        JSON.stringify({ movie: selectedMovie.title }),
+        context
+      );
+      executedToolActions.push({
+        toolName: "getMovieShowtimes",
+        args: { movie: selectedMovie.title },
+        result: toolResult,
+        success: toolResult.success,
+      });
+
+      reply =
+        `Great choice! **${selectedMovie.title}** is currently screening at these cinema locations:\n\n` +
+        selectedMovie.theaters
+          .map(
+            (t) =>
+              `📍 **${t.name}**\n   • Location: ${t.location}\n   • Formats: ${t.formats.join(", ")} · Ticket: ${t.price}`
+          )
+          .join("\n\n") +
+        `\n\nWhich cinema location or theater would you prefer?`;
+    }
+    // STEP 3: Once theater is chosen, show available show timings
+    else if (!selectedTiming) {
+      const toolResult = await executeToolCall(
+        "getMovieShowtimes",
+        JSON.stringify({
+          movie: selectedMovie.title,
+          theaterOrLocation: selectedTheater.name,
+        }),
+        context
+      );
+      executedToolActions.push({
+        toolName: "getMovieShowtimes",
+        args: { movie: selectedMovie.title, theaterOrLocation: selectedTheater.name },
+        result: toolResult,
+        success: toolResult.success,
+      });
+
+      reply =
+        `Here are the available show timings for **${selectedMovie.title}** at **${selectedTheater.name}** (${selectedTheater.location}):\n\n` +
+        selectedTheater.timings
+          .map((tm) => `🕒 **${tm}** (${selectedTheater.formats.join(", ")})`)
+          .join("\n") +
+        `\n\nWhich showtime works best for you, and how many tickets/seats would you like to book?`;
+    }
+    // STEP 4: Confirm booking details
+    else if (!isConfirmed) {
+      reply =
+        `🎟️ **Movie Ticket Reservation Summary:**\n` +
+        `• **Movie:** ${selectedMovie.title}\n` +
+        `• **Cinema:** ${selectedTheater.name} (${selectedTheater.location})\n` +
+        `• **Showtime:** Today at ${selectedTiming}\n` +
+        `• **Seats:** ${seatsCount} Ticket(s) (Reserved Row F)\n` +
+        `• **Price per Ticket:** ${selectedTheater.price}\n\n` +
+        `To confirm and secure your tickets in our database, please reply **'Confirm'** (or provide your name and email).`;
+    }
+    // STEP 5: Book ticket in MongoDB
+    else {
+      const toolResult = await executeToolCall(
+        "bookMovieTicket",
+        JSON.stringify({
+          movie: selectedMovie.title,
+          theater: selectedTheater.name,
+          location: selectedTheater.location,
+          showtime: selectedTiming,
+          seatsCount,
+          customerName,
+          customerEmail: email,
+          userConfirmed: true,
+          channel: context.channel || "website",
+        }),
+        context
+      );
+
+      executedToolActions.push({
+        toolName: "bookMovieTicket",
+        args: {
+          movie: selectedMovie.title,
+          theater: selectedTheater.name,
+          showtime: selectedTiming,
+          seatsCount,
+          customerName,
+          customerEmail: email,
+        },
+        result: toolResult,
+        success: toolResult.success,
+      });
+
+      if (toolResult.success) {
+        reply =
+          `✅ **Your Movie Tickets are Confirmed!**\n\n` +
+          `🎉 **Booking ID:** ${toolResult.bookingId}\n` +
+          `🎬 **Movie:** ${selectedMovie.title}\n` +
+          `📍 **Cinema:** ${selectedTheater.name} (${selectedTheater.location})\n` +
+          `🕒 **Showtime:** ${selectedTiming}\n` +
+          `💺 **Seats:** ${toolResult.seatNumbers || seatsCount + " Reserved Seats"}\n` +
+          `📧 A digital ticket pass has been queued for **${email}**.\n\nEnjoy your movie! 🍿`;
+      } else {
+        reply =
+          toolResult.message ||
+          "We could not complete your movie booking at this time. Please try again.";
+      }
+    }
+  } else if (lower.includes("slot") || lower.includes("availab") || (lower.includes("schedule") && !lower.includes("book"))) {
     const dateMatch = userPrompt.match(/\d{4}-\d{2}-\d{2}/);
     const date = dateMatch ? dateMatch[0] : "2026-11-09";
     const toolResult = await executeToolCall("checkAvailability", JSON.stringify({ date }), context);
@@ -174,7 +400,12 @@ export async function processAgentMessage({ messages, channel = "website", conte
 
   if (!aiClient) {
     const lastUserMsg = messages?.slice().reverse().find((m) => m.role === "user");
-    return await handleAutonomousFallback(lastUserMsg?.content || "", "Autonomous Engine", mergedContext);
+    return await handleAutonomousFallback(
+      lastUserMsg?.content || "",
+      "Autonomous Engine",
+      mergedContext,
+      messages || []
+    );
   }
 
   const channelNote = channel === "whatsapp" 
@@ -296,7 +527,12 @@ export async function processAgentMessage({ messages, channel = "website", conte
     if (isQuotaExceeded) {
       console.warn(`[SupportPilot Quota Fallback (${provider || "AI"})]: Executing autonomous operations engine.`);
       const lastUserMsg = messages?.slice().reverse().find((m) => m.role === "user");
-      return await handleAutonomousFallback(lastUserMsg?.content || "", model, mergedContext);
+      return await handleAutonomousFallback(
+        lastUserMsg?.content || "",
+        model,
+        mergedContext,
+        messages || []
+      );
     }
 
     throw error;
