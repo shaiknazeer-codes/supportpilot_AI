@@ -140,6 +140,49 @@ export const MOVIE_CATALOG = [
 ];
 
 /**
+ * Premier Partner Hospitals Catalog.
+ * Used by SupportPilot AI for conversational consultation scheduling.
+ */
+export const HOSPITAL_CATALOG = [
+  {
+    id: "metro-general",
+    name: "Metro General Hospital & Research Center",
+    location: "Downtown Central Campus, Block A",
+    departments: ["Cardiology", "General Medicine", "Neurology", "Pediatrics"],
+    availableDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+    timings: ["09:30 AM", "11:00 AM", "02:15 PM", "04:30 PM"],
+    consultationFee: "$50",
+  },
+  {
+    id: "st-jude",
+    name: "St. Jude Specialty Healthcare Center",
+    location: "Westside Medical Enclave, Gate 1",
+    departments: ["Orthopedics", "Sports Medicine", "Dermatology", "Ophthalmology"],
+    availableDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+    timings: ["10:00 AM", "01:30 PM", "03:45 PM", "05:15 PM"],
+    consultationFee: "$60",
+  },
+  {
+    id: "apex-hospital",
+    name: "Apex Multi-Specialty Hospital",
+    location: "North Avenue Health Park",
+    departments: ["Oncology", "Internal Medicine", "ENT", "Gastroenterology"],
+    availableDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+    timings: ["09:00 AM", "11:45 AM", "02:30 PM", "04:00 PM"],
+    consultationFee: "$55",
+  },
+  {
+    id: "curewell-clinic",
+    name: "CureWell Premier Clinic & Diagnostics",
+    location: "Midtown Square, 2nd Floor",
+    departments: ["Family Health", "Preventive Care", "Dental", "Endocrinology"],
+    availableDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    timings: ["10:30 AM", "01:00 PM", "03:15 PM", "05:45 PM"],
+    consultationFee: "$45",
+  },
+];
+
+/**
  * Editable FAQ Knowledge Base for SupportPilot AI.
  * Supplies ground-truth operational facts for customer inquiries.
  */
@@ -173,6 +216,25 @@ export const KNOWLEDGE_BASE = {
       rating: m.rating,
       theatersCount: m.theaters.length,
       theaters: m.theaters.map((t) => t.name),
+    })),
+  },
+  hospitalConsultationService: {
+    description:
+      "Full-cycle doctor appointment and hospital consultation scheduling across premier medical centers.",
+    workflowRules: [
+      "Step 1: When a customer asks to schedule a consultation or appointment, ask which hospital they would like to visit and list available partner hospitals with their locations & departments.",
+      "Step 2: Once the hospital is chosen, ask for their preferred day or date (e.g., Monday, Tuesday, Tomorrow).",
+      "Step 3: Once the day is specified, show the available consultation timings for that hospital (e.g. 09:30 AM, 11:00 AM, 02:15 PM, 04:30 PM) and ask which timing works best.",
+      "Step 4: Ask for customer/patient name, contact email, and department/purpose. Present a clear consultation summary and ask for explicit confirmation.",
+      "Step 5: When the customer confirms (replies 'Confirm' or 'Yes'), execute the booking and return a confirmed Booking ID (BK-MED-XXXXXX).",
+    ],
+    hospitals: HOSPITAL_CATALOG.map((h) => ({
+      name: h.name,
+      location: h.location,
+      departments: h.departments,
+      availableDays: h.availableDays,
+      timings: h.timings,
+      fee: h.consultationFee,
     })),
   },
   servicesAndCapabilities: [

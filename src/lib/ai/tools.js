@@ -1,8 +1,89 @@
 /**
  * Strict tool definitions for OpenAI Function Calling in SupportPilot AI.
- * Covers: checkAvailability, createBooking, createTicket, recordLead, escalateToHuman.
+ * Covers: getHospitalsAndSlots, bookHospitalConsultation, getMovieShowtimes, bookMovieTicket,
+ *         createTicket, recordLead, escalateToHuman.
  */
 export const SUPPORT_TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "getHospitalsAndSlots",
+      description:
+        "Fetches partner hospitals, locations, medical departments, and available consultation time slots. When called with no arguments, returns all partner hospitals. When given a hospital name, returns its operating days and slots. When given a day/date, returns available timing slots.",
+      parameters: {
+        type: "object",
+        properties: {
+          hospital: {
+            type: "string",
+            description: "Name or partial title of the hospital (e.g. 'Metro General', 'St. Jude', 'Apex', 'CureWell').",
+          },
+          dayOrDate: {
+            type: "string",
+            description: "Requested consultation day or date (e.g. 'Monday', 'Tomorrow', '2026-11-05').",
+          },
+          department: {
+            type: "string",
+            description: "Optional medical specialty (e.g. 'Cardiology', 'Orthopedics', 'General Medicine', 'Dermatology').",
+          },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "bookHospitalConsultation",
+      description:
+        "Books a confirmed doctor consultation at a partner hospital and saves it in MongoDB. REQUIRES customer explicit confirmation, hospital name, consultation day/date, timing slot, patient name, and customer email.",
+      parameters: {
+        type: "object",
+        properties: {
+          hospital: {
+            type: "string",
+            description: "Name of the hospital (e.g. 'Metro General Hospital & Research Center').",
+          },
+          location: {
+            type: "string",
+            description: "Campus location or address of the hospital.",
+          },
+          department: {
+            type: "string",
+            description: "Medical department or specialty (default 'General Medicine').",
+            default: "General Medicine",
+          },
+          day: {
+            type: "string",
+            description: "Consultation day or date (e.g. 'Monday' or '2026-11-09').",
+          },
+          time: {
+            type: "string",
+            description: "Selected time slot (e.g. '11:00 AM' or '02:15 PM').",
+          },
+          customerName: {
+            type: "string",
+            description: "Full name of the patient.",
+          },
+          customerEmail: {
+            type: "string",
+            description: "Valid customer email address for appointment confirmation.",
+          },
+          customerPhone: {
+            type: "string",
+            description: "Optional customer phone number.",
+          },
+          notes: {
+            type: "string",
+            description: "Brief reason or symptoms for the consultation.",
+          },
+          userConfirmed: {
+            type: "boolean",
+            description: "Must be true. Has the customer explicitly stated 'yes' or confirmed the hospital, day, and timing?",
+          },
+        },
+        required: ["hospital", "day", "time", "customerName", "customerEmail", "userConfirmed"],
+      },
+    },
+  },
   {
     type: "function",
     function: {
@@ -85,83 +166,6 @@ export const SUPPORT_TOOLS = [
           },
         },
         required: ["movie", "theater", "showtime", "customerName", "customerEmail", "userConfirmed"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "checkAvailability",
-      description:
-        "Check real available consultation and appointment slots for a requested date from the live booking system. Returns only valid, unbooked business hour slots. Never invent availability.",
-      parameters: {
-        type: "object",
-        properties: {
-          date: {
-            type: "string",
-            description:
-              "The requested date in YYYY-MM-DD format (e.g., '2026-11-05'). If the user says 'tomorrow' or 'next Tuesday', resolve to an ISO date.",
-          },
-          durationMinutes: {
-            type: "number",
-            description: "Desired appointment duration in minutes (default 30).",
-            default: 30,
-          },
-          topic: {
-            type: "string",
-            description: "Subject or purpose of the appointment (e.g. 'Product Demo', 'Support Onboarding').",
-          },
-        },
-        required: ["date"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "createBooking",
-      description:
-        "Saves a confirmed customer appointment booking in the MongoDB database. REQUIRES that the customer has explicitly confirmed the date, time, and contact info. Validates slot availability to prevent double-booking.",
-      parameters: {
-        type: "object",
-        properties: {
-          customerName: {
-            type: "string",
-            description: "Full name of the customer.",
-          },
-          customerEmail: {
-            type: "string",
-            description: "Valid customer email address.",
-          },
-          customerPhone: {
-            type: "string",
-            description: "Optional customer phone number.",
-          },
-          scheduledAt: {
-            type: "string",
-            description:
-              "ISO 8601 datetime string representing the confirmed appointment start time (e.g., '2026-11-05T14:00:00Z').",
-          },
-          durationMinutes: {
-            type: "number",
-            description: "Duration of the appointment in minutes (default 30).",
-            default: 30,
-          },
-          topic: {
-            type: "string",
-            description: "Purpose or title of the booking.",
-          },
-          notes: {
-            type: "string",
-            description: "Any special requirements or background provided by the customer.",
-          },
-          userConfirmed: {
-            type: "boolean",
-            description:
-              "Must be true. Has the customer explicitly stated 'yes' or confirmed the proposed time and booking details? If not confirmed yet, do not set to true.",
-          },
-        },
-        required: ["customerName", "customerEmail", "scheduledAt", "topic", "userConfirmed"],
       },
     },
   },
@@ -282,10 +286,10 @@ export const SUPPORT_TOOLS = [
 ];
 
 export const SUPPORT_TOOLS_WHITELIST = [
+  "getHospitalsAndSlots",
+  "bookHospitalConsultation",
   "getMovieShowtimes",
   "bookMovieTicket",
-  "checkAvailability",
-  "createBooking",
   "createTicket",
   "recordLead",
   "escalateToHuman",

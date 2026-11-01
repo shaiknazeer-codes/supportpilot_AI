@@ -46,26 +46,35 @@ export function validateBookingInput(body) {
     return { valid: false, error: "A valid customerEmail is required." };
   }
 
-  // Handle scheduledAt or fallback to current/show date if movie booking
+  // Handle scheduledAt or fallback to current/show date if movie/hospital booking
   let scheduledDate = null;
   if (scheduledAt && isValidDate(scheduledAt)) {
     scheduledDate = new Date(scheduledAt);
   } else if (body.showDate && isValidDate(body.showDate)) {
     scheduledDate = new Date(body.showDate);
-  } else if (body.movie) {
+  } else if (body.movie || body.hospital) {
     scheduledDate = new Date();
   } else {
     return { valid: false, error: "scheduledAt must be a valid future ISO datetime string." };
   }
 
-  const parsedDuration = Number(durationMinutes) || 120;
+  const parsedDuration = Number(durationMinutes) || 45;
   const allowedStatuses = ["pending", "confirmed", "rescheduled", "cancelled", "completed"];
   const status = body.status && allowedStatuses.includes(body.status) ? body.status : "confirmed";
   const channel = body.channel === "whatsapp" ? "whatsapp" : "website";
 
-  const defaultTopic = body.movie
-    ? `Movie: ${body.movie}${body.theater ? ` @ ${body.theater}` : ""} (${body.seatsCount || 1} Tickets)`
-    : "General Consultation";
+  let defaultTopic = "General Consultation";
+  if (body.movie) {
+    defaultTopic = `Movie: ${body.movie}${body.theater ? ` @ ${body.theater}` : ""} (${body.seatsCount || 1} Tickets)`;
+  } else if (body.hospital) {
+    defaultTopic = `Consultation: ${body.hospital} (${body.department || "General"}) - ${body.day || ""} ${body.time || ""}`;
+  }
+
+  const bookingType = body.movie
+    ? "movie_ticket"
+    : body.hospital
+    ? "hospital_consultation"
+    : body.bookingType || "consultation";
 
   return {
     valid: true,
@@ -85,7 +94,11 @@ export function validateBookingInput(body) {
       showtime: typeof body.showtime === "string" ? body.showtime.trim() : null,
       seatsCount: Number(body.seatsCount) || 1,
       seatNumbers: typeof body.seatNumbers === "string" ? body.seatNumbers.trim() : null,
-      bookingType: body.movie ? "movie_ticket" : (body.bookingType || "consultation"),
+      hospital: typeof body.hospital === "string" ? body.hospital.trim() : null,
+      department: typeof body.department === "string" ? body.department.trim() : null,
+      day: typeof body.day === "string" ? body.day.trim() : null,
+      time: typeof body.time === "string" ? body.time.trim() : null,
+      bookingType,
     },
   };
 }

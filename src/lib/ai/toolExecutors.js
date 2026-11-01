@@ -8,7 +8,7 @@ import {
   isValidEmail,
   isValidDate,
 } from "../db/validators.js";
-import { MOVIE_CATALOG } from "./knowledgeBase.js";
+import { MOVIE_CATALOG, HOSPITAL_CATALOG } from "./knowledgeBase.js";
 
 /**
  * Standard business hour slot templates for weekday scheduling (UTC).
@@ -764,6 +764,221 @@ export async function executeBookMovieTicket(args) {
 }
 
 /**
+ * Tool: getHospitalsAndSlots
+ * Returns partner hospitals, locations, departments, operating days, and available consultation time slots.
+ */
+export async function executeGetHospitalsAndSlots(args = {}) {
+  const { hospital, dayOrDate } = args;
+
+  // If no hospital is specified, return all partner hospitals
+  if (!hospital || !hospital.trim()) {
+    const list = HOSPITAL_CATALOG.map((h) => ({
+      name: h.name,
+      location: h.location,
+      departments: h.departments,
+      availableDays: h.availableDays,
+      fee: h.consultationFee,
+    }));
+    return {
+      success: true,
+      stage: "select_hospital",
+      count: list.length,
+      hospitals: list,
+      message:
+        "Here are our premier partner hospitals. Please select which hospital you would like to visit for your consultation.",
+    };
+  }
+
+  const queryHosp = hospital.trim().toLowerCase();
+  const matched = HOSPITAL_CATALOG.find(
+    (h) =>
+      h.name.toLowerCase().includes(queryHosp) ||
+      queryHosp.includes(h.id) ||
+      (queryHosp.includes("metro") && h.id === "metro-general") ||
+      (queryHosp.includes("jude") && h.id === "st-jude") ||
+      (queryHosp.includes("apex") && h.id === "apex-hospital") ||
+      (queryHosp.includes("curewell") && h.id === "curewell-clinic")
+  );
+
+  if (!matched) {
+    return {
+      success: false,
+      error: "HOSPITAL_NOT_FOUND",
+      message: `We could not find '${hospital}'. Available hospitals: ${HOSPITAL_CATALOG.map((h) => h.name).join(", ")}.`,
+      availableHospitals: HOSPITAL_CATALOG.map((h) => h.name),
+    };
+  }
+
+  return {
+    success: true,
+    stage: dayOrDate ? "select_timing" : "select_day",
+    hospital: matched.name,
+    location: matched.location,
+    departments: matched.departments,
+    availableDays: matched.availableDays,
+    timings: matched.timings,
+    fee: matched.consultationFee,
+    requestedDay: dayOrDate || null,
+    message: dayOrDate
+      ? `Available consultation timings for ${matched.name} on ${dayOrDate}: ${matched.timings.join(", ")}.`
+      : `${matched.name} consultations are available on ${matched.availableDays.join(", ")}. Please select your preferred day.`,
+  };
+}
+
+/**
+ * Tool: bookHospitalConsultation
+ * Validates hospital consultation, requires explicit confirmation, and persists to MongoDB.
+ */
+export async function executeBookHospitalConsultation(args) {
+  if (!args || typeof args !== "object") {
+    return {
+      success: false,
+      error: "INVALID_ARGUMENTS",
+      message: "Consultation arguments missing.",
+    };
+  }
+
+  const {
+    hospital,
+    location,
+    department = "General Medicine",
+    day,
+    time,
+    customerName,
+    customerEmail,
+    customerPhone,
+    notes,
+    userConfirmed,
+    channel = "website",
+  } = args;
+
+  if (!hospital || !day || !time) {
+    return {
+      success: false,
+      error: "MISSING_DETAILS",
+      message: "Hospital name, preferred day, and timing slot are required to book consultation.",
+    };
+  }
+
+  if (userConfirmed !== true) {
+    return {
+      success: false,
+      requiresConfirmation: true,
+      pendingDetails: {
+        hospital,
+        location: location || "Main Healthcare Campus",
+        department,
+        day,
+        time,
+        customerName: customerName || "Patient",
+        customerEmail: customerEmail || "",
+      },
+      message: `Consultation at ${hospital} (${department}) on ${day} at ${time} is pending your confirmation. Reply 'Confirm' to finalize your appointment!`,
+    };
+  }
+
+  if (!customerName || typeof customerName !== "string" || customerName.trim().length < 2) {
+    return {
+      success: false,
+      error: "INVALID_NAME",
+      message: "Please provide a valid patient name for the consultation record.",
+    };
+  }
+
+  if (!customerEmail || !isValidEmail(customerEmail)) {
+    return {
+      success: false,
+      error: "INVALID_EMAIL",
+      message: "Please provide a valid patient email address for appointment confirmation.",
+    };
+  }
+
+  const bookingId = generateUniqueId("BK-MED");
+  const topic = `Consultation: ${hospital.trim()} (${department}) - ${day} at ${time}`;
+
+  // Approximate scheduled datetime for the booking
+  const now = new Date();
+  const scheduledDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+  const consultationDoc = {
+    bookingId,
+    customerName: customerName.trim(),
+    customerEmail: customerEmail.trim().toLowerCase(),
+    customerPhone: customerPhone ? customerPhone.trim() : null,
+    hospital: hospital.trim(),
+    location: location ? location.trim() : "Main Medical Center",
+    department: department ? department.trim() : "General Medicine",
+    day: day.trim(),
+    time: time.trim(),
+    topic,
+    notes: notes || "Specialist hospital consultation",
+    scheduledAt: scheduledDate,
+    durationMinutes: 45,
+    bookingType: "hospital_consultation",
+    status: "confirmed",
+    channel: channel === "whatsapp" ? "whatsapp" : "website",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  if (!isMongoDBConfigured()) {
+    return {
+      success: true,
+      bookingId,
+      hospital: consultationDoc.hospital,
+      location: consultationDoc.location,
+      department: consultationDoc.department,
+      day: consultationDoc.day,
+      time: consultationDoc.time,
+      customerName: consultationDoc.customerName,
+      customerEmail: consultationDoc.customerEmail,
+      topic,
+      status: "confirmed",
+      dbActive: false,
+      message: `🏥 Consultation successfully booked! Booking ID: ${bookingId}. Your appointment at ${hospital} (${department}) on ${day} at ${time} is confirmed.`,
+    };
+  }
+
+  try {
+    const db = await getDatabase();
+    await ensureIndexes(db);
+
+    const insertResult = await db.collection(COLLECTIONS.BOOKINGS).insertOne(consultationDoc);
+
+    if (!insertResult.acknowledged) {
+      return {
+        success: false,
+        error: "WRITE_FAILED",
+        message: "Database failed to persist consultation booking.",
+      };
+    }
+
+    return {
+      success: true,
+      bookingId,
+      hospital: consultationDoc.hospital,
+      location: consultationDoc.location,
+      department: consultationDoc.department,
+      day: consultationDoc.day,
+      time: consultationDoc.time,
+      customerName: consultationDoc.customerName,
+      customerEmail: consultationDoc.customerEmail,
+      topic,
+      status: "confirmed",
+      dbActive: true,
+      message: `🏥 Consultation successfully booked and registered in database! Booking ID: ${bookingId}. Your appointment at ${hospital} (${department}) on ${day} at ${time} is confirmed.`,
+    };
+  } catch (error) {
+    console.error("[bookHospitalConsultation Error]:", error);
+    return {
+      success: false,
+      error: "DATABASE_ERROR",
+      message: error.message || "Failed to save consultation in database.",
+    };
+  }
+}
+
+/**
  * Dispatcher for all supported tool executions.
  * Accepts optional context object ({ channel, customerPhone, customerEmail, ... }).
  */
@@ -788,6 +1003,10 @@ export async function executeToolCall(toolName, rawArgs, context = {}) {
   }
 
   switch (toolName) {
+    case "getHospitalsAndSlots":
+      return await executeGetHospitalsAndSlots(args);
+    case "bookHospitalConsultation":
+      return await executeBookHospitalConsultation(args);
     case "getMovieShowtimes":
       return await executeGetMovieShowtimes(args);
     case "bookMovieTicket":

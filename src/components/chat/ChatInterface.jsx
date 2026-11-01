@@ -24,6 +24,8 @@ import {
   Film,
   MapPin,
   Ticket,
+  Building2,
+  Stethoscope,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 
@@ -40,27 +42,22 @@ function createMessageId(role) {
 
 const SUGGESTED_PROMPTS = [
   {
+    title: "🏥 Hospital Consultation",
+    prompt: "I would like to schedule a hospital consultation. Which hospitals are available?",
+    category: "Healthcare",
+  },
+  {
     title: "🎬 Book Movie Tickets",
     prompt: "I want to book movie tickets. What movies are currently playing?",
     category: "Movies",
   },
   {
-    title: "Check Slot Availability",
-    prompt: "Can you check available consultation appointment slots for next Monday?",
-    category: "Scheduling",
-  },
-  {
-    title: "Book Onboarding Session",
-    prompt: "I'd like to book an enterprise onboarding demo on 2026-11-09 at 10:00 AM UTC for Alex Rivera (alex@example.com).",
-    category: "Booking",
-  },
-  {
-    title: "Log Support Ticket",
-    prompt: "Please create a high-priority support ticket: 'API webhooks failing with 504 gateway timeout for user dev@acme.com'.",
+    title: "🎫 Log Support Ticket",
+    prompt: "Please create a high-priority support ticket. The API webhooks are failing with a 504 gateway timeout. Customer email: dev@acme.com.",
     category: "Support",
   },
   {
-    title: "Human Escalation",
+    title: "🚨 Human Escalation",
     prompt: "My billing issue has been pending for days and is unresolved. Please escalate this request to a human support specialist.",
     category: "Escalation",
   },
@@ -71,6 +68,164 @@ const SUGGESTED_PROMPTS = [
  */
 function ActionCard({ action, onSelectSlot }) {
   const { toolName, result, success } = action;
+
+  if (toolName === "getHospitalsAndSlots") {
+    if (!success) {
+      return (
+        <div className="mt-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+          <span>{result?.message || "Could not fetch hospital consultation slots."}</span>
+        </div>
+      );
+    }
+
+    // Stage 1: Hospital List
+    if (result?.hospitals && result.hospitals.length > 0) {
+      return (
+        <div className="mt-3 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-text-primary">
+          <div className="flex items-center gap-2 mb-2 font-semibold text-emerald-300">
+            <Building2 className="w-4 h-4 text-emerald-400" />
+            <span>Premier Partner Hospitals</span>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 ml-auto">
+              Live Network
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+            {result.hospitals.map((h) => (
+              <div
+                key={h.name}
+                className="p-2.5 rounded-lg bg-bg-primary/80 border border-white/5 flex flex-col justify-between"
+              >
+                <div>
+                  <span className="font-semibold text-text-primary text-[12px] block flex items-center gap-1">
+                    <Stethoscope className="w-3.5 h-3.5 text-accent-cyan" />
+                    {h.name}
+                  </span>
+                  <span className="text-[10px] text-text-muted block mt-0.5">
+                    {h.location}
+                  </span>
+                  <span className="text-[10px] text-text-secondary block mt-1 font-mono">
+                    Specialties: {h.departments.join(", ")}
+                  </span>
+                </div>
+                <div className="mt-2 text-[10px] text-emerald-400 font-mono font-medium flex items-center justify-between">
+                  <span>{h.availableDays?.length || 6} Days/Week</span>
+                  <span>{h.fee}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Stage 2 & 3: Hospital Timings & Days
+    if (result?.hospital) {
+      return (
+        <div className="mt-3 p-3.5 rounded-xl bg-accent-cyan/10 border border-accent-cyan/30 text-xs text-text-primary">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5 font-semibold text-accent-cyan-light">
+              <Building2 className="w-4 h-4 text-accent-cyan" />
+              <span>{result.hospital}</span>
+            </div>
+            {result.fee && (
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-emerald-400">
+                {result.fee}
+              </span>
+            )}
+          </div>
+          <div className="p-2.5 rounded-lg bg-bg-primary/90 border border-border-subtle mt-2">
+            <div className="mb-2">
+              <span className="text-[11px] text-text-muted flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-accent-violet-light" />
+                {result.location}
+              </span>
+              <span className="text-[10px] text-accent-cyan block mt-0.5 font-mono">
+                Departments: {result.departments?.join(", ")}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap mt-2">
+              <span className="text-[10px] text-text-muted mr-1 font-medium">Slots:</span>
+              {result.timings?.map((timing) => (
+                <button
+                  key={timing}
+                  type="button"
+                  onClick={() => onSelectSlot && onSelectSlot(`${timing} on ${result.requestedDay || 'Monday'} at ${result.hospital}`)}
+                  className="px-2 py-1 rounded bg-accent-cyan/15 hover:bg-accent-cyan/30 border border-accent-cyan/30 text-[10px] font-mono text-accent-cyan-light hover:text-white transition-all cursor-pointer"
+                  title="Click to select consultation slot"
+                >
+                  {timing}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  if (toolName === "bookHospitalConsultation" || (toolName === "createBooking" && (result?.hospital || result?.bookingType === "hospital_consultation"))) {
+    if (result?.requiresConfirmation) {
+      return (
+        <div className="mt-3 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs">
+          <div className="flex items-center gap-2 font-semibold text-amber-300 mb-1.5">
+            <Stethoscope className="w-4 h-4 text-amber-400" />
+            <span>Consultation Confirmation Requested</span>
+          </div>
+          <p className="text-text-muted text-[11px]">
+            {result?.message || `Ready to book at ${result?.pendingDetails?.hospital} on ${result?.pendingDetails?.day} at ${result?.pendingDetails?.time}. Reply 'Confirm' to finalize.`}
+          </p>
+        </div>
+      );
+    }
+
+    if (success && result?.bookingId) {
+      return (
+        <div className="mt-3 p-4 rounded-xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-blue-500/15 border border-emerald-500/40 text-xs shadow-lg">
+          <div className="flex items-center justify-between mb-2 pb-2 border-b border-emerald-500/20">
+            <div className="flex items-center gap-2 font-bold text-emerald-300">
+              <Building2 className="w-4 h-4 text-emerald-400" />
+              <span>Hospital Consultation Confirmed in MongoDB</span>
+            </div>
+            <span className="font-mono text-[11px] px-2.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-600 font-bold">
+              {result.bookingId}
+            </span>
+          </div>
+
+          <div className="space-y-1.5 mt-2">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm font-bold text-text-primary tracking-tight flex items-center gap-1.5">
+                <Stethoscope className="w-4 h-4 text-emerald-400" />
+                {result.hospital}
+              </span>
+              <span className="text-[11px] font-mono text-emerald-400 font-semibold">
+                {result.department || "General Medicine"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-text-muted text-[11px] pt-1">
+              <div>
+                <span className="text-text-secondary font-medium">Day & Time: </span>
+                {result.day} at {result.time}
+              </div>
+              <div>
+                <span className="text-text-secondary font-medium">Location: </span>
+                {result.location}
+              </div>
+              <div>
+                <span className="text-text-secondary font-medium">Patient: </span>
+                {result.customerName}
+              </div>
+              <div>
+                <span className="text-text-secondary font-medium">Email: </span>
+                {result.customerEmail}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+  }
 
   if (toolName === "getMovieShowtimes") {
     if (!success) {
@@ -237,125 +392,6 @@ function ActionCard({ action, onSelectSlot }) {
               </div>
             </div>
           </div>
-        </div>
-      );
-    }
-  }
-
-  if (toolName === "checkAvailability") {
-    // If the database query failed or database is not active
-    if (!success || result?.dbActive !== true) {
-      return (
-        <div className="mt-3 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-text-primary">
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="flex items-center gap-1.5 font-semibold text-rose-300">
-              <AlertCircle className="w-4 h-4 text-rose-400" />
-              <span>Calendar Availability Check Failed</span>
-            </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800">
-              DB Offline
-            </span>
-          </div>
-          <p className="text-rose-200/90 text-xs mt-1">
-            {result?.message || "Unable to reach database to verify consultation availability."}
-          </p>
-          {result?.date && (
-            <p className="text-[11px] text-text-muted mt-1 font-mono">
-              Requested Date: {result.date}
-            </p>
-          )}
-        </div>
-      );
-    }
-
-    const slots = result?.availableSlots || [];
-    return (
-      <div className="mt-3 p-3 rounded-xl bg-accent-cyan/10 border border-accent-cyan/30 text-xs text-text-primary">
-        <div className="flex items-center gap-2 mb-2 font-semibold text-accent-cyan-light">
-          <Clock className="w-3.5 h-3.5" />
-          <span>Available Consultation Slots ({result?.date})</span>
-          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 ml-auto">
-            Live DB
-          </span>
-        </div>
-        {slots.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5 mt-1.5">
-            {slots.map((slotIso) => {
-              const timeFormatted = new Date(slotIso).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-                timeZone: "UTC",
-              });
-              return (
-                <button
-                  key={slotIso}
-                  type="button"
-                  onClick={() => onSelectSlot && onSelectSlot(slotIso, result?.date)}
-                  className="px-2.5 py-1 rounded-lg bg-bg-primary/80 border border-border-subtle hover:border-accent-cyan hover:bg-accent-cyan/20 text-[11px] font-mono text-text-secondary hover:text-white transition-all cursor-pointer"
-                  title="Click to select this slot"
-                >
-                  {timeFormatted} UTC
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="text-text-muted italic">{result?.message || "No open slots."}</p>
-        )}
-      </div>
-    );
-  }
-
-  if (toolName === "createBooking") {
-    if (success && result?.bookingId) {
-      return (
-        <div className="mt-3 p-3.5 rounded-xl bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/30 text-xs">
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="flex items-center gap-1.5 font-bold text-emerald-300">
-              <CheckCircle className="w-4 h-4 text-emerald-400" />
-              <span>Appointment Confirmed in Database</span>
-            </div>
-            <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700 font-semibold">
-              {result.bookingId}
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-text-muted mt-2 text-[11px]">
-            <div>
-              <span className="text-text-secondary font-medium">Customer: </span>
-              {result.customerName}
-            </div>
-            <div>
-              <span className="text-text-secondary font-medium">Time: </span>
-              {new Date(result.scheduledAt).toUTCString()}
-            </div>
-            <div className="col-span-2">
-              <span className="text-text-secondary font-medium">Topic: </span>
-              {result.topic}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (result?.requiresConfirmation) {
-      return (
-        <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs">
-          <div className="flex items-center gap-2 font-semibold text-amber-300 mb-1">
-            <AlertCircle className="w-3.5 h-3.5" />
-            <span>Customer Confirmation Requested</span>
-          </div>
-          <p className="text-text-muted text-[11px]">
-            Slot proposed for {result?.pendingDetails?.scheduledAt}. Waiting for your confirmation.
-          </p>
-        </div>
-      );
-    }
-
-    if (result?.error === "SLOT_CONFLICT") {
-      return (
-        <div className="mt-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-          <span>Double-booking prevented: That slot is already occupied.</span>
         </div>
       );
     }

@@ -2,7 +2,7 @@ import { getAIClient, getAIModel, getAIProvider } from "./client.js";
 import { SYSTEM_PROMPT } from "./prompts.js";
 import { SUPPORT_TOOLS, SUPPORT_TOOLS_WHITELIST } from "./tools.js";
 import { executeToolCall } from "./toolExecutors.js";
-import { MOVIE_CATALOG } from "./knowledgeBase.js";
+import { MOVIE_CATALOG, HOSPITAL_CATALOG } from "./knowledgeBase.js";
 
 /**
  * Autonomous operations fallback when AI provider quota or rate limit is reached.
@@ -23,14 +23,15 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
   ).toLowerCase();
 
   // Detect Movie Ticket Booking Intent
+  // NOTE: Do NOT use bare "ticket" here — it conflicts with "support ticket". Use "movie ticket" or specific movie terms.
   const isMovieIntent =
-    userMessagesText.includes("ticket") ||
+    userMessagesText.includes("movie ticket") ||
+    userMessagesText.includes("book ticket") ||
     userMessagesText.includes("movie") ||
     userMessagesText.includes("cinema") ||
     userMessagesText.includes("theatre") ||
     userMessagesText.includes("theater") ||
     userMessagesText.includes("showtime") ||
-    userMessagesText.includes("timing") ||
     userMessagesText.includes("seat") ||
     MOVIE_CATALOG.some(
       (m) => userMessagesText.includes(m.title.toLowerCase()) || userMessagesText.includes(m.id)
@@ -109,8 +110,8 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
     const emailMatch = userMessagesText.match(/[\w.-]+@[\w.-]+\.\w+/);
     const email = emailMatch ? emailMatch[0] : (context.customerEmail || "customer@example.com");
     const nameMatch =
-      userPrompt.match(/for ([A-Z][a-z]+ [A-Z][a-z]+)/) ||
-      userPrompt.match(/my name is ([A-Z][a-z]+)/i);
+      userMessagesText.match(/for ([A-Z][a-z]+ [A-Z][a-z]+)/i) ||
+      userMessagesText.match(/my name is ([A-Z][a-z]+ [A-Z][a-z]+|[A-Z][a-z]+)/i);
     const customerName = nameMatch ? (nameMatch[1] || nameMatch[0]) : (context.customerName || "Movie Guest");
     const seatsMatch = userMessagesText.match(/(\d+)\s*(tickets?|seats?)/);
     const seatsCount = seatsMatch ? parseInt(seatsMatch[1], 10) : 2;
@@ -239,62 +240,205 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
           "We could not complete your movie booking at this time. Please try again.";
       }
     }
-  } else if (lower.includes("slot") || lower.includes("availab") || (lower.includes("schedule") && !lower.includes("book"))) {
-    const dateMatch = userPrompt.match(/\d{4}-\d{2}-\d{2}/);
-    const date = dateMatch ? dateMatch[0] : "2026-11-09";
-    const toolResult = await executeToolCall("checkAvailability", JSON.stringify({ date }), context);
-    executedToolActions.push({
-      toolName: "checkAvailability",
-      args: { date },
-      result: toolResult,
-      success: toolResult.success,
-    });
-    if (toolResult.success && toolResult.dbActive) {
-      if (toolResult.availableSlots && toolResult.availableSlots.length > 0) {
-        reply = `I have verified our consultation calendar with the database. There are ${toolResult.availableSlots.length} available slots for ${date}. Select any slot to reserve it or tell me what time works best for you!`;
-      } else {
-        reply = `I verified our consultation calendar with the database. All standard consultation slots for ${date} are currently booked. Please select another date.`;
+  } else if (
+    userMessagesText.includes("hospital") ||
+    userMessagesText.includes("doctor") ||
+    userMessagesText.includes("clinic") ||
+    userMessagesText.includes("consult") ||
+    userMessagesText.includes("medical") ||
+    HOSPITAL_CATALOG.some((h) => userMessagesText.includes(h.name.toLowerCase()) || userMessagesText.includes(h.id)) ||
+    (lower.includes("schedule") && !isMovieIntent) ||
+    (lower.includes("appointment") && !isMovieIntent) ||
+    (lower.includes("slot") && !isMovieIntent)
+  ) {
+    // 1. Identify if a hospital has been chosen by the customer
+    let selectedHospital = null;
+    for (const h of HOSPITAL_CATALOG) {
+      const hLower = h.name.toLowerCase();
+      if (
+        userMessagesText.includes(hLower) ||
+        userMessagesText.includes(h.id) ||
+        (userMessagesText.includes("metro") && h.id === "metro-general") ||
+        (userMessagesText.includes("jude") && h.id === "st-jude") ||
+        (userMessagesText.includes("apex") && h.id === "apex-hospital") ||
+        (userMessagesText.includes("curewell") && h.id === "curewell-clinic")
+      ) {
+        selectedHospital = h;
+        break;
       }
-    } else {
-      reply = toolResult.message || `Unable to check consultation availability for ${date} because the database is currently unreachable.`;
     }
-  } else if (lower.includes("book") || lower.includes("demo") || lower.includes("appointment") || lower.includes("reserve")) {
-    const emailMatch = userPrompt.match(/[\w.-]+@[\w.-]+\.\w+/);
+
+    // 2. Identify if a day or date has been chosen by the customer
+    let selectedDay = null;
+    if (selectedHospital) {
+      const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+      for (const d of days) {
+        if (userMessagesText.includes(d)) {
+          selectedDay = d.charAt(0).toUpperCase() + d.slice(1);
+          break;
+        }
+      }
+      if (!selectedDay) {
+        if (userMessagesText.includes("today")) selectedDay = "Today";
+        else if (userMessagesText.includes("tomorrow")) selectedDay = "Tomorrow";
+        else {
+          const dateMatch = userMessagesText.match(/\d{4}-\d{2}-\d{2}/);
+          if (dateMatch) selectedDay = dateMatch[0];
+        }
+      }
+    }
+
+    // 3. Identify if a timing has been chosen by the customer
+    let selectedTime = null;
+    if (selectedHospital && selectedDay) {
+      for (const t of selectedHospital.timings) {
+        const timeDigits = t.split(" ")[0].replace(/^0/, "");
+        if (userMessagesText.includes(t.toLowerCase()) || userMessagesText.includes(timeDigits)) {
+          selectedTime = t;
+          break;
+        }
+      }
+      if (!selectedTime) {
+        if (userMessagesText.includes("morning")) selectedTime = selectedHospital.timings[0];
+        else if (userMessagesText.includes("afternoon") || userMessagesText.includes("matinee"))
+          selectedTime = selectedHospital.timings[2] || selectedHospital.timings[1];
+        else if (userMessagesText.includes("evening"))
+          selectedTime = selectedHospital.timings[selectedHospital.timings.length - 1];
+      }
+    }
+
+    // 4. Check for confirmation intent
+    const isConfirmed =
+      lower.includes("confirm") ||
+      lower.includes("yes") ||
+      lower.includes("proceed") ||
+      lower.includes("agree") ||
+      lower.includes("book it") ||
+      lower.includes("sure");
+
+    // Extract customer details
+    const emailMatch = userMessagesText.match(/[\w.-]+@[\w.-]+\.\w+/);
     const email = emailMatch ? emailMatch[0] : (context.customerEmail || "alex@example.com");
-    const nameMatch = userPrompt.match(/for ([A-Z][a-z]+ [A-Z][a-z]+)/);
-    const name = nameMatch ? nameMatch[1] : (context.customerName || "Customer");
-    const dateMatch = userPrompt.match(/\d{4}-\d{2}-\d{2}/);
-    const date = dateMatch ? dateMatch[0] : "2026-11-09";
-    const timeMatch = userPrompt.match(/(\d{1,2}:\d{2})/);
-    const time = timeMatch ? timeMatch[1] : "10:00";
-    const slotIso = `${date}T${time}:00.000Z`;
+    const nameMatch =
+      userMessagesText.match(/for ([A-Z][a-z]+ [A-Z][a-z]+)/i) ||
+      userMessagesText.match(/my name is ([A-Z][a-z]+ [A-Z][a-z]+|[A-Z][a-z]+)/i) ||
+      userMessagesText.match(/patient:?\s*([A-Z][a-z]+ [A-Z][a-z]+|[A-Z][a-z]+)/i);
+    const customerName = nameMatch ? (nameMatch[1] || nameMatch[0]) : (context.customerName || "Patient");
 
-    // Only mark userConfirmed as true if explicit confirmation intent is detected
-    const confirmed = lower.includes("confirm") || lower.includes("yes") || lower.includes("agree") || lower.includes("proceed");
+    // STEP 1: Ask Hospital if not specified
+    if (!selectedHospital) {
+      const toolResult = await executeToolCall("getHospitalsAndSlots", JSON.stringify({}), context);
+      executedToolActions.push({
+        toolName: "getHospitalsAndSlots",
+        args: {},
+        result: toolResult,
+        success: toolResult.success,
+      });
 
-    const toolResult = await executeToolCall("createBooking", JSON.stringify({
-      customerName: name,
-      customerEmail: email,
-      customerPhone: context.customerPhone || null,
-      scheduledAt: slotIso,
-      topic: "Enterprise Onboarding Demo",
-      userConfirmed: confirmed,
-      channel: context.channel || "website",
-    }), context);
+      reply =
+        `🏥 **Which hospital would you like to schedule your consultation at?**\n\n` +
+        `Here are our premier partner hospitals:\n` +
+        HOSPITAL_CATALOG.map(
+          (h, i) =>
+            `${i + 1}. **${h.name}**\n   • Location: ${h.location}\n   • Specialties: ${h.departments.join(", ")}\n   • Consultation Fee: ${h.consultationFee}`
+        ).join("\n\n") +
+        `\n\nPlease let me know which hospital you would like to visit!`;
+    }
+    // STEP 2: Ask Day if not specified
+    else if (!selectedDay) {
+      const toolResult = await executeToolCall(
+        "getHospitalsAndSlots",
+        JSON.stringify({ hospital: selectedHospital.name }),
+        context
+      );
+      executedToolActions.push({
+        toolName: "getHospitalsAndSlots",
+        args: { hospital: selectedHospital.name },
+        result: toolResult,
+        success: toolResult.success,
+      });
 
-    executedToolActions.push({
-      toolName: "createBooking",
-      args: { customerName: name, customerEmail: email, scheduledAt: slotIso, topic: "Enterprise Onboarding Demo" },
-      result: toolResult,
-      success: toolResult.success,
-    });
+      reply =
+        `Great choice! **${selectedHospital.name}** offers specialist consultations on **${selectedHospital.availableDays.join(", ")}**.\n\n` +
+        `Which day or date works best for you (e.g. Monday, Tomorrow, or a specific date)?`;
+    }
+    // STEP 3: Show & Ask Timings if not specified
+    else if (!selectedTime) {
+      const toolResult = await executeToolCall(
+        "getHospitalsAndSlots",
+        JSON.stringify({
+          hospital: selectedHospital.name,
+          dayOrDate: selectedDay,
+        }),
+        context
+      );
+      executedToolActions.push({
+        toolName: "getHospitalsAndSlots",
+        args: { hospital: selectedHospital.name, dayOrDate: selectedDay },
+        result: toolResult,
+        success: toolResult.success,
+      });
 
-    if (toolResult.success) {
-      reply = `✅ Your appointment has been successfully confirmed and registered in our database under booking ID ${toolResult.bookingId}. A calendar confirmation has been queued for ${email}.`;
-    } else if (toolResult.requiresConfirmation) {
-      reply = `I have staged your appointment request for ${slotIso} under ${name} (${email}). To confirm and save this into our calendar database, please reply with 'Confirm'.`;
-    } else {
-      reply = toolResult.message || "We could not secure that specific slot. Please choose another open time.";
+      reply =
+        `Here are the available consultation timings for **${selectedHospital.name}** on **${selectedDay}**:\n\n` +
+        selectedHospital.timings.map((t) => `🕒 **${t}** (Specialist Slot)`).join("\n") +
+        `\n\nWhich timing slot works best for you?`;
+    }
+    // STEP 4: Summary & Ask Confirmation
+    else if (!isConfirmed) {
+      reply =
+        `📋 **Consultation Appointment Summary:**\n` +
+        `• **Hospital:** ${selectedHospital.name} (${selectedHospital.location})\n` +
+        `• **Department:** General Medicine / Outpatient\n` +
+        `• **Day & Time:** ${selectedDay} at ${selectedTime}\n` +
+        `• **Consultation Fee:** ${selectedHospital.consultationFee}\n\n` +
+        `To confirm and secure your consultation appointment in our database, please reply **'Confirm'** (or provide your name and email).`;
+    }
+    // STEP 5: At Last Confirmed! Save to MongoDB
+    else {
+      const toolResult = await executeToolCall(
+        "bookHospitalConsultation",
+        JSON.stringify({
+          hospital: selectedHospital.name,
+          location: selectedHospital.location,
+          department: "General Medicine",
+          day: selectedDay,
+          time: selectedTime,
+          customerName,
+          customerEmail: email,
+          userConfirmed: true,
+          channel: context.channel || "website",
+        }),
+        context
+      );
+
+      executedToolActions.push({
+        toolName: "bookHospitalConsultation",
+        args: {
+          hospital: selectedHospital.name,
+          day: selectedDay,
+          time: selectedTime,
+          customerName,
+          customerEmail: email,
+        },
+        result: toolResult,
+        success: toolResult.success,
+      });
+
+      if (toolResult.success) {
+        reply =
+          `✅ **Your Consultation Appointment is Confirmed!**\n\n` +
+          `🎉 **Booking ID:** ${toolResult.bookingId}\n` +
+          `🏥 **Hospital:** ${selectedHospital.name}\n` +
+          `📍 **Location:** ${selectedHospital.location}\n` +
+          `📅 **Appointment:** ${selectedDay} at ${selectedTime}\n` +
+          `👤 **Patient:** ${customerName}\n` +
+          `📧 A confirmation notice and appointment pass have been sent to **${email}**.\n\nTake care! 🩺`;
+      } else {
+        reply =
+          toolResult.message ||
+          "We could not secure that specific consultation slot. Please try another time.";
+      }
     }
   } else if (lower.includes("escalat") || lower.includes("human") || lower.includes("specialist") || lower.includes("representative")) {
     const emailMatch = userPrompt.match(/[\w.-]+@[\w.-]+\.\w+/);
@@ -319,7 +463,12 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
     } else {
       reply = `🚨 Your escalation request has been registered. Our human support team has been notified. (${toolResult.message || "Escalation queued for triage"})`;
     }
-  } else if (lower.includes("ticket") || lower.includes("bug") || lower.includes("issue") || lower.includes("error") || lower.includes("504") || lower.includes("failing")) {
+  } else if (
+    (lower.includes("support ticket") || lower.includes("create ticket") || lower.includes("log ticket") ||
+     lower.includes("report issue") || lower.includes("bug") || lower.includes("error") ||
+     lower.includes("504") || lower.includes("failing") || lower.includes("issue")) &&
+    !isMovieIntent
+  ) {
     const emailMatch = userPrompt.match(/[\w.-]+@[\w.-]+\.\w+/);
     const email = emailMatch ? emailMatch[0] : (context.customerEmail || "dev@acme.com");
     const priority = lower.includes("high") ? "high" : lower.includes("urgent") ? "urgent" : "medium";
