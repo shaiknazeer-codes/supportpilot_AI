@@ -1,216 +1,428 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { Ear, Brain, Zap, CheckCircle2 } from "lucide-react";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-import SectionHeading from "@/components/ui/SectionHeading";
+import { useRef, useState } from "react";
+import { motion, useScroll, useTransform, useMotionValueEvent } from "framer-motion";
+import {
+  Ear,
+  Brain,
+  Zap,
+  CheckCircle2,
+  Sparkles,
+  ArrowRight,
+  ChevronRight,
+  Radio,
+  Cpu,
+  Layers,
+  ShieldCheck,
+  Mouse,
+} from "lucide-react";
+import GlowOrb from "@/components/ui/GlowOrb";
 
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger);
-}
-
-const stages = [
+const steps = [
   {
-    icon: Ear,
+    step: "01",
     label: "Listen",
-    color: "from-violet-500 to-purple-600",
-    accent: "violet",
     title: "Hear Every Customer",
     description:
       "SupportPilot AI captures every message, tone, and intent across all channels — chat, email, and voice — in real time.",
     stat: "99.7%",
     statLabel: "message capture rate",
+    icon: Ear,
+    accent: "violet",
+    gradient: "from-violet-500 via-purple-500 to-indigo-600",
+    glowColor: "rgba(139, 92, 246, 0.35)",
+    borderGlow: "border-violet-500/40",
+    features: [
+      "Omnichannel Ingestion (Web, WhatsApp, Email)",
+      "Real-time Audio & Text Stream Parsing",
+      "Customer Sentiment & Emotion Detection",
+    ],
+    telemetry: {
+      tag: "Live Audio & Text Bus",
+      metric: "Zero Dropped Packets",
+      status: "Active Ingestion",
+    },
   },
   {
-    icon: Brain,
+    step: "02",
     label: "Understand",
-    color: "from-purple-500 to-indigo-600",
-    accent: "indigo",
     title: "Context-Aware Intelligence",
     description:
       "Natural language understanding maps customer intent, sentiment, and history to deliver precise, contextual responses.",
     stat: "< 200ms",
     statLabel: "intent classification",
+    icon: Brain,
+    accent: "cyan",
+    gradient: "from-cyan-500 via-teal-500 to-blue-600",
+    glowColor: "rgba(6, 182, 212, 0.35)",
+    borderGlow: "border-cyan-500/40",
+    features: [
+      "Vector Similarity & Multi-Turn Memory",
+      "Dynamic Entity Extraction",
+      "Multi-Language Intent Matching",
+    ],
+    telemetry: {
+      tag: "Neural Semantic Engine",
+      metric: "99.4% Confidence Score",
+      status: "Context Mapped",
+    },
   },
   {
-    icon: Zap,
+    step: "03",
     label: "Act",
-    color: "from-cyan-500 to-teal-500",
-    accent: "cyan",
     title: "Instant Automated Action",
     description:
       "Book appointments, create tickets, update records, and process requests automatically — no human latency.",
     stat: "85%",
     statLabel: "automated resolution",
+    icon: Zap,
+    accent: "amber",
+    gradient: "from-amber-400 via-orange-500 to-rose-500",
+    glowColor: "rgba(245, 158, 11, 0.35)",
+    borderGlow: "border-amber-500/40",
+    features: [
+      "Real MongoDB Operations Execution",
+      "Slot Scheduling & Ticket Creation",
+      "Immediate Escalation Routing",
+    ],
+    telemetry: {
+      tag: "Tool Dispatch Bus",
+      metric: "1.1s Avg Execution",
+      status: "Database Synced",
+    },
   },
   {
-    icon: CheckCircle2,
+    step: "04",
     label: "Resolve",
-    color: "from-emerald-500 to-green-500",
-    accent: "emerald",
     title: "Complete Resolution",
     description:
       "Every interaction reaches a satisfying conclusion — resolved autonomously or seamlessly escalated to your team.",
     stat: "4.9★",
     statLabel: "customer satisfaction",
+    icon: CheckCircle2,
+    accent: "emerald",
+    gradient: "from-emerald-400 via-teal-500 to-green-600",
+    glowColor: "rgba(16, 185, 129, 0.35)",
+    borderGlow: "border-emerald-500/40",
+    features: [
+      "Autonomous 24/7 Problem Closing",
+      "Warm Human Hand-off with Full Context",
+      "Automatic Satisfaction Telemetry",
+    ],
+    telemetry: {
+      tag: "Resolution Pipeline",
+      metric: "98.9% First Contact Resolution",
+      status: "Verified Closed",
+    },
   },
 ];
 
-function StageCard({ stage, index }) {
-  const cardRef = useRef(null);
+export default function Storytelling() {
+  const containerRef = useRef(null);
+  const [activeStep, setActiveStep] = useState(0);
 
-  useEffect(() => {
-    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (prefersReduced) {
-      if (cardRef.current) cardRef.current.style.opacity = "1";
-      return;
-    }
+  // Framer Motion Scroll Tracking
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end end"],
+  });
 
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        cardRef.current,
-        {
-          opacity: 0,
-          y: 45,
-          x: index % 2 === 0 ? -20 : 20,
-        },
-        {
-          opacity: 1,
-          y: 0,
-          x: 0,
-          duration: 0.75,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: cardRef.current,
-            start: "top 85%",
-            toggleActions: "play none none none",
-          },
-        }
-      );
+  // 5 slides total (1 Overview + 4 Steps) => transforms horizontally from 0% to -80%
+  const x = useTransform(scrollYProgress, [0, 1], ["0%", "-80%"]);
+
+  // Track active slide index (0 to 4)
+  useMotionValueEvent(scrollYProgress, "change", (latest) => {
+    const slideIndex = Math.min(Math.floor(latest * 4.99), 4);
+    setActiveStep(slideIndex);
+  });
+
+  // Click to jump to any slide
+  const handleJumpToSlide = (index) => {
+    if (!containerRef.current) return;
+    const containerTop = containerRef.current.offsetTop;
+    const scrollDistance = containerRef.current.offsetHeight - window.innerHeight;
+    const targetY = containerTop + (index / 4) * scrollDistance;
+    window.scrollTo({
+      top: targetY,
+      behavior: "smooth",
     });
-
-    return () => ctx.revert();
-  }, [index]);
-
-  const Icon = stage.icon;
+  };
 
   return (
-    <div ref={cardRef} className="opacity-0">
-      <div
-        className={`relative flex flex-col lg:flex-row items-center gap-8 lg:gap-16 ${
-          index % 2 !== 0 ? "lg:flex-row-reverse" : ""
-        }`}
-      >
-        {/* Visual side */}
-        <div className="flex-1 flex justify-center">
-          <div className="relative">
-            {/* Glow backdrop */}
-            <div
-              className={`absolute inset-0 bg-gradient-to-br ${stage.color} opacity-10 rounded-3xl blur-3xl scale-110`}
-              aria-hidden="true"
-            />
-            <div className="relative glass-card p-8 sm:p-10 flex flex-col items-center text-center min-w-[240px]">
-              {/* Step number */}
-              <span className="text-xs font-mono text-text-muted mb-4 tracking-wider">
-                STEP {String(index + 1).padStart(2, "0")}
-              </span>
-              {/* Icon */}
-              <div
-                className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${stage.color} flex items-center justify-center mb-5 shadow-lg`}
-              >
-                <Icon className="w-7 h-7 text-white" />
+    <section
+      id="storytelling"
+      ref={containerRef}
+      className="relative h-[380vh] bg-[#07070d] text-white"
+    >
+      {/* Sticky Fullscreen Viewport */}
+      <div className="sticky top-0 h-screen w-full overflow-hidden flex flex-col justify-between">
+        {/* Ambient Glow Lights */}
+        <div className="absolute inset-0 pointer-events-none select-none z-0">
+          <GlowOrb color="violet" size={600} blur={160} opacity={0.2} className="top-[-100px] left-[-60px]" />
+          <GlowOrb color="cyan" size={600} blur={160} opacity={0.18} className="bottom-[-80px] right-[-60px]" />
+          {/* Subtle grid pattern */}
+          <div
+            className="absolute inset-0 opacity-[0.14] mix-blend-overlay"
+            style={{
+              backgroundImage:
+                "linear-gradient(rgba(139, 92, 246, 0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(6, 182, 212, 0.4) 1px, transparent 1px)",
+              backgroundSize: "56px 56px",
+            }}
+          />
+        </div>
+
+        {/* Top Floating Step Navigation Bar */}
+        <header className="relative z-30 pt-6 px-4 sm:px-8 max-w-6xl mx-auto w-full flex items-center justify-between">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-md text-xs font-mono text-slate-300">
+            <Layers className="w-3.5 h-3.5 text-accent-cyan" />
+            <span>Interactive Horizontal Pipeline</span>
+          </div>
+
+          {/* Step Pill Jumpers */}
+          <div className="flex items-center gap-1.5 sm:gap-2 p-1 rounded-full bg-black/60 border border-white/10 backdrop-blur-md">
+            <button
+              onClick={() => handleJumpToSlide(0)}
+              className={`px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-medium transition-all cursor-pointer ${
+                activeStep === 0
+                  ? "bg-white/20 text-white font-semibold shadow-sm"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              Overview
+            </button>
+            {steps.map((s, idx) => {
+              const isActive = activeStep === idx + 1;
+              return (
+                <button
+                  key={s.step}
+                  onClick={() => handleJumpToSlide(idx + 1)}
+                  className={`px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-medium transition-all cursor-pointer flex items-center gap-1 ${
+                    isActive
+                      ? "bg-accent-violet/30 text-accent-violet-light border border-accent-violet/50 shadow-[0_0_12px_rgba(139,92,246,0.4)]"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <span className="font-mono text-[10px]">{s.step}</span>
+                  <span className="hidden md:inline">{s.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </header>
+
+        {/* Horizontally Scrolling Slides Container */}
+        <motion.div
+          style={{ x }}
+          className="relative z-10 flex h-[78vh] w-[500vw] will-change-transform"
+        >
+          {/* ── SLIDE 0: Overview Landing Slide ── */}
+          <div className="w-screen h-full flex items-center justify-center px-4 sm:px-8 shrink-0">
+            <div className="max-w-4xl mx-auto text-center flex flex-col items-center">
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-6 text-xs font-semibold tracking-wider uppercase rounded-full bg-accent-violet/15 text-accent-violet-light border border-accent-violet/30 backdrop-blur-md shadow-[0_0_20px_rgba(139,92,246,0.25)]">
+                <Sparkles className="w-3.5 h-3.5 text-accent-cyan" />
+                How It Works
               </div>
-              {/* Label */}
-              <h3 className="text-2xl font-bold text-text-primary mb-1">
-                {stage.label}
-              </h3>
-              {/* Stat */}
-              <div className="mt-4 pt-4 border-t border-border-subtle w-full">
-                <p className="text-2xl font-bold gradient-text">
-                  {stage.stat}
-                </p>
-                <p className="text-xs text-text-muted mt-1">{stage.statLabel}</p>
-                <p className="text-xs text-text-muted italic mt-1">(demo data)</p>
+
+              {/* Title */}
+              <h2 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.12] mb-6">
+                Four Steps to <span className="gradient-text">Complete Resolution</span>
+              </h2>
+
+              {/* Description */}
+              <p className="max-w-2xl mx-auto text-base sm:text-lg md:text-xl text-slate-300 leading-relaxed mb-10">
+                Every conversation follows a proven path from first contact to full resolution — powered by AI that never sleeps.
+              </p>
+
+              {/* 4 Steps Visual Flow Indicator */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 w-full max-w-3xl mb-10">
+                {steps.map((st, i) => {
+                  const Icon = st.icon;
+                  return (
+                    <button
+                      key={st.step}
+                      onClick={() => handleJumpToSlide(i + 1)}
+                      className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-accent-violet/50 hover:bg-white/[0.07] transition-all text-left group cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-mono text-[11px] text-accent-cyan font-bold">
+                          STEP {st.step}
+                        </span>
+                        <Icon className="w-4 h-4 text-slate-400 group-hover:text-accent-violet-light transition-colors" />
+                      </div>
+                      <p className="font-bold text-white text-sm group-hover:text-accent-violet-light transition-colors">
+                        {st.label}
+                      </p>
+                      <p className="font-mono text-xs text-emerald-400 mt-1">{st.stat}</p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Scroll prompt */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent-violet/20 border border-accent-violet/30 text-accent-violet-light text-xs font-medium">
+                <Mouse className="w-4 h-4 animate-bounce text-accent-cyan" />
+                <span>Scroll down to slide through steps</span>
+                <ArrowRight className="w-3.5 h-3.5 text-accent-cyan animate-pulse" />
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Text side */}
-        <div className="flex-1 text-center lg:text-left">
-          <h4 className="text-xl sm:text-2xl font-bold text-text-primary mb-3">
-            {stage.title}
-          </h4>
-          <p className="text-text-secondary leading-relaxed max-w-md mx-auto lg:mx-0">
-            {stage.description}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
+          {/* ── SLIDES 1 to 4: Each Individual Step ── */}
+          {steps.map((stage, index) => {
+            const Icon = stage.icon;
+            return (
+              <div
+                key={stage.step}
+                className="w-screen h-full flex items-center justify-center px-4 sm:px-10 lg:px-16 shrink-0"
+              >
+                <div className="max-w-5xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+                  {/* Left Column: Step Details */}
+                  <div className="lg:col-span-6 flex flex-col items-center lg:items-start text-center lg:text-left">
+                    {/* Step pill */}
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-mono font-semibold tracking-wider text-accent-cyan mb-4">
+                      <span className="w-2 h-2 rounded-full bg-accent-cyan animate-ping" />
+                      STEP {stage.step} OF 04
+                    </div>
 
-export default function Storytelling() {
-  const timelineRef = useRef(null);
+                    {/* Step Label & Title */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div
+                        className={`w-12 h-12 rounded-xl bg-gradient-to-br ${stage.gradient} flex items-center justify-center shadow-lg`}
+                      >
+                        <Icon className="w-6 h-6 text-white" />
+                      </div>
+                      <h3 className="text-2xl sm:text-3xl font-extrabold text-white">
+                        {stage.label}
+                      </h3>
+                    </div>
 
-  useEffect(() => {
-    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (prefersReduced) {
-      if (timelineRef.current) timelineRef.current.style.transform = "scaleY(1)";
-      return;
-    }
+                    <h4 className="text-xl sm:text-2xl font-bold text-text-primary mb-3">
+                      {stage.title}
+                    </h4>
 
-    const ctx = gsap.context(() => {
-      // Animate the connecting timeline
-      gsap.fromTo(
-        timelineRef.current,
-        { scaleY: 0 },
-        {
-          scaleY: 1,
-          ease: "none",
-          scrollTrigger: {
-            trigger: timelineRef.current,
-            start: "top 80%",
-            end: "bottom 40%",
-            scrub: 1,
-          },
-        }
-      );
-    });
+                    <p className="text-slate-300 text-sm sm:text-base leading-relaxed mb-6 max-w-lg">
+                      {stage.description}
+                    </p>
 
-    return () => ctx.revert();
-  }, []);
+                    {/* Feature bullets */}
+                    <div className="space-y-2.5 w-full max-w-md text-left">
+                      {stage.features.map((feat, fIdx) => (
+                        <div
+                          key={fIdx}
+                          className="flex items-center gap-2.5 text-xs sm:text-sm text-slate-300 bg-white/[0.03] border border-white/5 p-2 rounded-lg"
+                        >
+                          <ChevronRight className="w-4 h-4 text-accent-cyan shrink-0" />
+                          <span>{feat}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-  return (
-    <section id="storytelling" className="relative py-24 sm:py-32 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <SectionHeading
-          badge="How It Works"
-          title={
-            <>
-              Four Steps to{" "}
-              <span className="gradient-text">Complete Resolution</span>
-            </>
-          }
-          description="Every conversation follows a proven path from first contact to full resolution — powered by AI that never sleeps."
-        />
+                  {/* Right Column: Hero Metric & Telemetry Glass Card */}
+                  <div className="lg:col-span-6 flex justify-center">
+                    <div className="relative w-full max-w-md">
+                      {/* Glow Behind Card */}
+                      <div
+                        className="absolute inset-0 rounded-3xl blur-3xl opacity-35 transition-all duration-700"
+                        style={{ background: stage.glowColor }}
+                      />
 
-        {/* Timeline connector (desktop) */}
-        <div className="relative">
-          <div
-            ref={timelineRef}
-            className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-accent-violet via-accent-cyan to-emerald-500 origin-top"
-            aria-hidden="true"
-          />
+                      {/* Main Glass Card */}
+                      <div
+                        className={`relative glass-card p-6 sm:p-8 rounded-3xl border ${stage.borderGlow} bg-black/70 backdrop-blur-2xl shadow-2xl overflow-hidden`}
+                      >
+                        {/* Header Badge */}
+                        <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-6">
+                          <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                            <Cpu className="w-3.5 h-3.5 text-accent-cyan" />
+                            {stage.telemetry.tag}
+                          </span>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            {stage.telemetry.status}
+                          </span>
+                        </div>
 
-          {/* Stage cards */}
-          <div className="space-y-20 lg:space-y-28">
-            {stages.map((stage, index) => (
-              <StageCard key={stage.label} stage={stage} index={index} />
-            ))}
+                        {/* Huge Metric */}
+                        <div className="text-center py-4">
+                          <span className="text-5xl sm:text-6xl font-black tracking-tight gradient-text block">
+                            {stage.stat}
+                          </span>
+                          <span className="text-sm font-semibold text-white tracking-wide mt-2 block">
+                            {stage.statLabel}
+                          </span>
+                          <span className="text-[11px] text-slate-400 italic block mt-0.5">
+                            (demo data)
+                          </span>
+                        </div>
+
+                        {/* Live Telemetry Footer */}
+                        <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-xs font-mono text-slate-400">
+                          <span>Live Performance:</span>
+                          <span className="text-accent-cyan font-semibold">
+                            {stage.telemetry.metric}
+                          </span>
+                        </div>
+
+                        {/* Interactive Step Progress Dots */}
+                        <div className="flex items-center justify-center gap-1.5 mt-6">
+                          {[0, 1, 2, 3].map((dot) => (
+                            <span
+                              key={dot}
+                              className={`h-1.5 rounded-full transition-all duration-300 ${
+                                dot === index
+                                  ? "w-8 bg-gradient-to-r from-accent-cyan to-accent-violet shadow-[0_0_8px_#06b6d4]"
+                                  : "w-1.5 bg-white/20"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </motion.div>
+
+        {/* Bottom Horizontal Scroll Progress Dock */}
+        <footer className="relative z-30 pb-6 px-4 sm:px-8 max-w-5xl mx-auto w-full">
+          <div className="flex items-center justify-between gap-4 p-3 rounded-2xl glass-card border border-white/10 bg-black/60 backdrop-blur-xl shadow-xl">
+            <span className="text-[11px] font-mono text-slate-400 shrink-0">
+              {activeStep === 0
+                ? "Overview · 4 Steps"
+                : `Step ${activeStep} of 4: ${steps[activeStep - 1]?.label}`}
+            </span>
+
+            {/* Custom Horizontal Progress Bar */}
+            <div className="flex-1 bg-white/10 h-2 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-gradient-to-r from-accent-cyan via-accent-violet to-emerald-400 rounded-full"
+                style={{
+                  width: useTransform(scrollYProgress, [0, 1], ["5%", "100%"]),
+                }}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleJumpToSlide(Math.max(0, activeStep - 1))}
+                disabled={activeStep === 0}
+                className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Prev
+              </button>
+              <button
+                onClick={() => handleJumpToSlide(Math.min(4, activeStep + 1))}
+                disabled={activeStep === 4}
+                className="px-2.5 py-1 rounded-lg bg-accent-violet/30 border border-accent-violet/40 text-xs text-accent-violet-light hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Next
+              </button>
+            </div>
           </div>
-        </div>
+        </footer>
       </div>
     </section>
   );
