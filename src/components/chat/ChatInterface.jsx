@@ -467,15 +467,28 @@ export default function ChatInterface() {
   const [errorState, setErrorState] = useState(null);
   const mounted = useMounted();
 
-  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const inputRef = useRef(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
   };
 
+  // Keep window at top when entering /chat page
   useEffect(() => {
-    scrollToBottom();
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Only scroll the inner chat container when messages or state change
+  useEffect(() => {
+    if (messages.length > 0 || isLoading || errorState) {
+      scrollToBottom();
+    }
   }, [messages, isLoading, errorState]);
 
   const formatTimestamp = (date) => {
@@ -548,7 +561,7 @@ export default function ChatInterface() {
       });
     } finally {
       setIsLoading(false);
-      setTimeout(() => inputRef.current?.focus(), 100);
+      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 100);
     }
   };
 
@@ -629,7 +642,10 @@ export default function ChatInterface() {
       </div>
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 scrollbar-thin">
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 scrollbar-thin"
+      >
         {/* Empty State with Suggested Operational Prompts */}
         {messages.length === 0 && !errorState && (
           <div className="h-full flex flex-col justify-center items-center text-center px-4 py-8">
@@ -811,8 +827,6 @@ export default function ChatInterface() {
             </div>
           </motion.div>
         )}
-
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Input Area */}
