@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { motion, useScroll, useTransform, useMotionValueEvent } from "framer-motion";
+import { useRef } from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
 import {
   Ear,
   Brain,
@@ -10,10 +10,7 @@ import {
   Sparkles,
   ArrowRight,
   ChevronRight,
-  Radio,
   Cpu,
-  Layers,
-  ShieldCheck,
   Mouse,
 } from "lucide-react";
 import GlowOrb from "@/components/ui/GlowOrb";
@@ -119,7 +116,6 @@ const steps = [
 
 export default function Storytelling() {
   const containerRef = useRef(null);
-  const [activeStep, setActiveStep] = useState(0);
 
   // Framer Motion Scroll Tracking
   const { scrollYProgress } = useScroll({
@@ -130,13 +126,7 @@ export default function Storytelling() {
   // 5 slides total (1 Overview + 4 Steps) => transforms horizontally from 0% to -80%
   const x = useTransform(scrollYProgress, [0, 1], ["0%", "-80%"]);
 
-  // Track active slide index (0 to 4)
-  useMotionValueEvent(scrollYProgress, "change", (latest) => {
-    const slideIndex = Math.min(Math.floor(latest * 4.99), 4);
-    setActiveStep(slideIndex);
-  });
-
-  // Click to jump to any slide
+  // Click on overview card to jump to any step
   const handleJumpToSlide = (index) => {
     if (!containerRef.current) return;
     const containerTop = containerRef.current.offsetTop;
@@ -155,12 +145,12 @@ export default function Storytelling() {
       className="relative h-[380vh] bg-[#07070d] text-white"
     >
       {/* Sticky Fullscreen Viewport */}
-      <div className="sticky top-0 h-screen w-full overflow-hidden flex flex-col justify-between">
+      <div className="sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center">
         {/* Ambient Glow Lights */}
         <div className="absolute inset-0 pointer-events-none select-none z-0">
-          <GlowOrb color="violet" size={600} blur={160} opacity={0.2} className="top-[-100px] left-[-60px]" />
-          <GlowOrb color="cyan" size={600} blur={160} opacity={0.18} className="bottom-[-80px] right-[-60px]" />
-          {/* Subtle grid pattern */}
+          <GlowOrb color="violet" size={650} blur={160} opacity={0.22} className="top-[-100px] left-[-60px]" />
+          <GlowOrb color="cyan" size={650} blur={160} opacity={0.2} className="bottom-[-80px] right-[-60px]" />
+          {/* High-Tech Cyber Grid */}
           <div
             className="absolute inset-0 opacity-[0.14] mix-blend-overlay"
             style={{
@@ -171,52 +161,13 @@ export default function Storytelling() {
           />
         </div>
 
-        {/* Top Floating Step Navigation Bar */}
-        <header className="relative z-30 pt-6 px-4 sm:px-8 max-w-6xl mx-auto w-full flex items-center justify-between">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-md text-xs font-mono text-slate-300">
-            <Layers className="w-3.5 h-3.5 text-accent-cyan" />
-            <span>Interactive Horizontal Pipeline</span>
-          </div>
-
-          {/* Step Pill Jumpers */}
-          <div className="flex items-center gap-1.5 sm:gap-2 p-1 rounded-full bg-black/60 border border-white/10 backdrop-blur-md">
-            <button
-              onClick={() => handleJumpToSlide(0)}
-              className={`px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-medium transition-all cursor-pointer ${
-                activeStep === 0
-                  ? "bg-white/20 text-white font-semibold shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              Overview
-            </button>
-            {steps.map((s, idx) => {
-              const isActive = activeStep === idx + 1;
-              return (
-                <button
-                  key={s.step}
-                  onClick={() => handleJumpToSlide(idx + 1)}
-                  className={`px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-medium transition-all cursor-pointer flex items-center gap-1 ${
-                    isActive
-                      ? "bg-accent-violet/30 text-accent-violet-light border border-accent-violet/50 shadow-[0_0_12px_rgba(139,92,246,0.4)]"
-                      : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  <span className="font-mono text-[10px]">{s.step}</span>
-                  <span className="hidden md:inline">{s.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </header>
-
         {/* Horizontally Scrolling Slides Container */}
         <motion.div
           style={{ x }}
-          className="relative z-10 flex h-[78vh] w-[500vw] will-change-transform"
+          className="relative z-10 flex h-screen w-[500vw] will-change-transform items-center"
         >
           {/* ── SLIDE 0: Overview Landing Slide ── */}
-          <div className="w-screen h-full flex items-center justify-center px-4 sm:px-8 shrink-0">
+          <div className="w-screen h-screen flex items-center justify-center px-4 sm:px-8 shrink-0">
             <div className="max-w-4xl mx-auto text-center flex flex-col items-center">
               {/* Badge */}
               <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-6 text-xs font-semibold tracking-wider uppercase rounded-full bg-accent-violet/15 text-accent-violet-light border border-accent-violet/30 backdrop-blur-md shadow-[0_0_20px_rgba(139,92,246,0.25)]">
@@ -234,13 +185,14 @@ export default function Storytelling() {
                 Every conversation follows a proven path from first contact to full resolution — powered by AI that never sleeps.
               </p>
 
-              {/* 4 Steps Visual Flow Indicator */}
+              {/* 4 Steps Visual Flow Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 w-full max-w-3xl mb-10">
                 {steps.map((st, i) => {
                   const Icon = st.icon;
                   return (
                     <button
                       key={st.step}
+                      type="button"
                       onClick={() => handleJumpToSlide(i + 1)}
                       className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-accent-violet/50 hover:bg-white/[0.07] transition-all text-left group cursor-pointer"
                     >
@@ -274,7 +226,7 @@ export default function Storytelling() {
             return (
               <div
                 key={stage.step}
-                className="w-screen h-full flex items-center justify-center px-4 sm:px-10 lg:px-16 shrink-0"
+                className="w-screen h-screen flex items-center justify-center px-4 sm:px-10 lg:px-16 shrink-0"
               >
                 <div className="max-w-5xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
                   {/* Left Column: Step Details */}
@@ -385,44 +337,6 @@ export default function Storytelling() {
             );
           })}
         </motion.div>
-
-        {/* Bottom Horizontal Scroll Progress Dock */}
-        <footer className="relative z-30 pb-6 px-4 sm:px-8 max-w-5xl mx-auto w-full">
-          <div className="flex items-center justify-between gap-4 p-3 rounded-2xl glass-card border border-white/10 bg-black/60 backdrop-blur-xl shadow-xl">
-            <span className="text-[11px] font-mono text-slate-400 shrink-0">
-              {activeStep === 0
-                ? "Overview · 4 Steps"
-                : `Step ${activeStep} of 4: ${steps[activeStep - 1]?.label}`}
-            </span>
-
-            {/* Custom Horizontal Progress Bar */}
-            <div className="flex-1 bg-white/10 h-2 rounded-full overflow-hidden">
-              <motion.div
-                className="h-full bg-gradient-to-r from-accent-cyan via-accent-violet to-emerald-400 rounded-full"
-                style={{
-                  width: useTransform(scrollYProgress, [0, 1], ["5%", "100%"]),
-                }}
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleJumpToSlide(Math.max(0, activeStep - 1))}
-                disabled={activeStep === 0}
-                className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-              >
-                Prev
-              </button>
-              <button
-                onClick={() => handleJumpToSlide(Math.min(4, activeStep + 1))}
-                disabled={activeStep === 4}
-                className="px-2.5 py-1 rounded-lg bg-accent-violet/30 border border-accent-violet/40 text-xs text-accent-violet-light hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        </footer>
       </div>
     </section>
   );
