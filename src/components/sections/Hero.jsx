@@ -6,10 +6,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
   Sparkles,
-  Activity,
-  Zap,
-  Radio,
-  CheckCircle2,
   Cpu,
 } from "lucide-react";
 import { gsap } from "gsap";
@@ -58,11 +54,6 @@ export default function Hero() {
   const scanBeamRef = useRef(null);
   const spotlightRef = useRef(null);
   const flashRef = useRef(null);
-
-  // Holographic HUD Telemetry Refs
-  const hudNode1Ref = useRef(null);
-  const hudNode2Ref = useRef(null);
-  const hudNode3Ref = useRef(null);
 
   // Mouse tilt & dynamic cursor spotlight tracking
   const handleMouseMove = useCallback((e) => {
@@ -136,20 +127,6 @@ export default function Hero() {
             repeatDelay: 1.5,
           }
         );
-      }
-
-      // 2. Audio/Intent Neural Equalizer bars animation
-      gsap.to(".hud-eq-1", { scaleY: 2.4, repeat: -1, yoyo: true, duration: 0.38, ease: "power1.inOut" });
-      gsap.to(".hud-eq-2", { scaleY: 1.6, repeat: -1, yoyo: true, duration: 0.46, ease: "power1.inOut", delay: 0.1 });
-      gsap.to(".hud-eq-3", { scaleY: 2.8, repeat: -1, yoyo: true, duration: 0.32, ease: "power1.inOut", delay: 0.2 });
-      gsap.to(".hud-eq-4", { scaleY: 1.8, repeat: -1, yoyo: true, duration: 0.5, ease: "power1.inOut", delay: 0.15 });
-
-      // 3. Floating sine wave on HUD telemetry nodes
-      if (hudNode1Ref.current) {
-        gsap.to(hudNode1Ref.current, { y: "+=8", duration: 3.2, repeat: -1, yoyo: true, ease: "sine.inOut" });
-      }
-      if (hudNode2Ref.current) {
-        gsap.to(hudNode2Ref.current, { y: "-=10", duration: 3.6, repeat: -1, yoyo: true, ease: "sine.inOut", delay: 0.3 });
       }
     }, heroContainerRef);
 
@@ -235,80 +212,6 @@ export default function Hero() {
       <GlowOrb color="violet" size={680} blur={160} opacity={0.32} className="top-[-120px] left-[-80px] z-[1]" />
       <GlowOrb color="cyan" size={620} blur={150} opacity={0.28} className="bottom-[-100px] right-[-80px] z-[1]" />
       <GlowOrb color="violet" size={480} blur={140} opacity={0.2} className="top-1/3 left-1/2 -translate-x-1/2 z-[1]" />
-
-      {/* ── 3. FLOATING AR TELEMETRY NODES ── */}
-      {/* Left Holographic Card */}
-      <motion.div
-        ref={hudNode1Ref}
-        initial={{ opacity: 0, x: -50 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-        className="hidden xl:flex absolute left-8 2xl:left-16 top-[32%] z-[5] pointer-events-none select-none flex-col gap-2 p-3.5 rounded-2xl glass-card border border-accent-cyan/40 bg-black/60 backdrop-blur-xl shadow-[0_8px_32px_rgba(6,182,212,0.25)] max-w-[240px]"
-      >
-        <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2">
-          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-accent-cyan uppercase tracking-wider">
-            <Radio className="w-3.5 h-3.5 animate-pulse text-accent-cyan" />
-            Live Copilot Stream
-          </span>
-          <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_#34d399]" />
-        </div>
-        <div className="text-xs text-text-primary font-medium flex items-center justify-between">
-          <span>Intent Match:</span>
-          <span className="text-accent-cyan font-mono font-semibold">{activeBg.metric1}</span>
-        </div>
-        <div className="text-[11px] text-text-muted flex items-center justify-between font-mono">
-          <span>Latency:</span>
-          <span className="text-emerald-400">12ms · Realtime</span>
-        </div>
-        <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden mt-0.5">
-          <div className="bg-gradient-to-r from-accent-cyan to-accent-violet h-full w-[94%] rounded-full shadow-[0_0_8px_#06b6d4]" />
-        </div>
-      </motion.div>
-
-      {/* Right Holographic Card */}
-      <motion.div
-        ref={hudNode2Ref}
-        initial={{ opacity: 0, x: 50 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
-        className="hidden xl:flex absolute right-8 2xl:right-16 top-[38%] z-[5] pointer-events-none select-none flex-col gap-2 p-3.5 rounded-2xl glass-card border border-accent-violet/40 bg-black/60 backdrop-blur-xl shadow-[0_8px_32px_rgba(139,92,246,0.25)] max-w-[250px]"
-      >
-        <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2">
-          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-accent-violet-light uppercase tracking-wider">
-            <Zap className="w-3.5 h-3.5 text-accent-violet-light" />
-            Autonomous Action
-          </span>
-          <span className="text-[10px] font-mono text-emerald-400 bg-emerald-400/15 px-1.5 py-0.5 rounded border border-emerald-400/30">
-            COMPLETED
-          </span>
-        </div>
-        <div className="flex items-start gap-2 text-xs text-text-secondary">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-          <span>Ticket #8492 auto-triaged & resolved in 1.1s</span>
-        </div>
-        <div className="flex items-center justify-between text-[11px] text-text-muted pt-1 border-t border-white/5 font-mono">
-          <span>CSAT Rating:</span>
-          <span className="text-accent-violet-light font-bold">4.9 ★★★★★</span>
-        </div>
-      </motion.div>
-
-      {/* Center-Top Floating Telemetry: Neural Waveform */}
-      <motion.div
-        ref={hudNode3Ref}
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, delay: 0.4 }}
-        className="hidden md:flex absolute right-[18%] top-[14%] z-[5] pointer-events-none select-none items-center gap-2.5 px-3.5 py-1.5 rounded-full glass-card border border-white/15 bg-black/50 backdrop-blur-md shadow-lg"
-      >
-        <Activity className="w-3.5 h-3.5 text-accent-cyan" />
-        <span className="text-[11px] font-medium text-text-secondary">Neural Voice & Chat Bus</span>
-        <div className="flex items-end gap-0.5 h-3">
-          <span className="hud-eq-1 w-0.5 h-1.5 bg-accent-cyan rounded-full origin-bottom" />
-          <span className="hud-eq-2 w-0.5 h-2.5 bg-accent-violet-light rounded-full origin-bottom" />
-          <span className="hud-eq-3 w-0.5 h-2 bg-accent-cyan rounded-full origin-bottom" />
-          <span className="hud-eq-4 w-0.5 h-3 bg-accent-violet rounded-full origin-bottom" />
-        </div>
-      </motion.div>
 
       {/* ── 4. MAIN HERO CONTENT (DIRECTLY VISIBLE ON FIRST LOAD) ── */}
       <div className="relative z-10 max-w-5xl mx-auto text-center">
