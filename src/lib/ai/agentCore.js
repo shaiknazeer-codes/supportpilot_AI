@@ -51,7 +51,13 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       if (
         userMessagesText.includes(titleLower) ||
         userMessagesText.includes(m.id) ||
-        (firstWord.length > 3 && userMessagesText.includes(firstWord))
+        (firstWord.length > 3 && userMessagesText.includes(firstWord)) ||
+        (titleLower.includes("bhool") && userMessagesText.includes("bhool")) ||
+        (titleLower.includes("singham") && userMessagesText.includes("singham")) ||
+        (titleLower.includes("gladiator") && userMessagesText.includes("gladiator")) ||
+        (titleLower.includes("amaran") && userMessagesText.includes("amaran")) ||
+        (titleLower.includes("venom") && userMessagesText.includes("venom")) ||
+        (titleLower.includes("stree") && userMessagesText.includes("stree"))
       ) {
         selectedMovie = m;
         break;
@@ -65,10 +71,15 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
         const tLower = t.name.toLowerCase();
         if (
           userMessagesText.includes(tLower) ||
+          (tLower.includes("c-21") && (userMessagesText.includes("c21") || userMessagesText.includes("c-21"))) ||
+          (tLower.includes("treasure island") && (userMessagesText.includes("ti") || userMessagesText.includes("treasure"))) ||
+          (tLower.includes("phoenix") && (userMessagesText.includes("phoenix") || userMessagesText.includes("citadel"))) ||
+          (tLower.includes("velocity") && (userMessagesText.includes("velocity") || userMessagesText.includes("miraj"))) ||
+          (tLower.includes("malhar") && (userMessagesText.includes("malhar") || userMessagesText.includes("rajhans"))) ||
+          (tLower.includes("central") && (userMessagesText.includes("nexus") || userMessagesText.includes("central"))) ||
           (tLower.includes("imax") && userMessagesText.includes("imax")) ||
-          (tLower.includes("grand plaza") && (userMessagesText.includes("grand") || userMessagesText.includes("plaza"))) ||
-          (tLower.includes("cinestar") && userMessagesText.includes("cinestar")) ||
-          (tLower.includes("pvr") && (userMessagesText.includes("pvr") || userMessagesText.includes("orion")))
+          (tLower.includes("pvr") && userMessagesText.includes("pvr")) ||
+          (tLower.includes("inox") && userMessagesText.includes("inox"))
         ) {
           selectedTheater = t;
           break;
@@ -127,12 +138,12 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       });
 
       reply =
-        `🎬 **Which movie would you like to watch?**\n\n` +
-        `Here are the top movies currently screening in theaters:\n` +
+        `🎬 **Which movie would you like to watch in Indore?**\n\n` +
+        `Here are the latest movies currently screening across Indore multiplexes (BookMyShow Live):\n` +
         MOVIE_CATALOG.map(
-          (m, i) => `${i + 1}. **${m.title}** (${m.genre} · ${m.duration} · ${m.rating})`
+          (m, i) => `${i + 1}. **${m.title}** (${m.genre} · ${m.duration} · ${m.language})`
         ).join("\n") +
-        `\n\nPlease let me know which movie you'd like to book tickets for!`;
+        `\n\nPlease let me know which movie you'd like to book tickets for in Indore!`;
     }
     // STEP 2: Once movie is chosen, show cinema locations where it is available
     else if (!selectedTheater) {
@@ -149,14 +160,14 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       });
 
       reply =
-        `Great choice! **${selectedMovie.title}** is currently screening at these cinema locations:\n\n` +
+        `Great choice! **${selectedMovie.title}** is currently screening at these Indore cinema venues:\n\n` +
         selectedMovie.theaters
           .map(
             (t) =>
-              `📍 **${t.name}**\n   • Location: ${t.location}\n   • Formats: ${t.formats.join(", ")} · Ticket: ${t.price}`
+              `📍 **${t.name}**\n   • Location: ${t.location}\n   • Formats: ${t.formats.join(", ")} · Ticket Price: ${t.price}`
           )
           .join("\n\n") +
-        `\n\nWhich cinema location or theater would you prefer?`;
+        `\n\nWhich Indore cinema location or theater would you prefer?`;
     }
     // STEP 3: Once theater is chosen, show available show timings
     else if (!selectedTiming) {

@@ -47,8 +47,8 @@ const SUGGESTED_PROMPTS = [
     category: "Healthcare",
   },
   {
-    title: "🎬 Book Movie Tickets",
-    prompt: "I want to book movie tickets. What movies are currently playing?",
+    title: "🎬 Book Movie Tickets (Indore)",
+    prompt: "I want to book movie tickets in Indore. What movies are currently playing?",
     category: "Movies",
   },
   {
