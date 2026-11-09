@@ -7,11 +7,10 @@ import {
   Brain,
   Zap,
   CheckCircle2,
-  Sparkles,
-  ArrowRight,
   ChevronRight,
   Cpu,
   Mouse,
+  ArrowRight,
 } from "lucide-react";
 import GlowOrb from "@/components/ui/GlowOrb";
 
@@ -145,7 +144,7 @@ export default function Storytelling() {
       className="relative h-[380vh] bg-[#07070d] text-white"
     >
       {/* Sticky Fullscreen Viewport */}
-      <div className="sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center">
+      <div className="sticky top-0 h-screen w-full overflow-hidden flex flex-col justify-between">
         {/* Ambient Glow Lights */}
         <div className="absolute inset-0 pointer-events-none select-none z-0">
           <GlowOrb color="violet" size={650} blur={160} opacity={0.22} className="top-[-100px] left-[-60px]" />
@@ -161,32 +160,31 @@ export default function Storytelling() {
           />
         </div>
 
+        {/* ── TOP SECTION HEADING: Four Steps to Complete Resolution ── */}
+        <header className="relative z-20 pt-8 sm:pt-10 pb-2 text-center px-4 max-w-4xl mx-auto w-full">
+          <span className="text-[11px] sm:text-xs font-mono uppercase tracking-widest text-accent-cyan font-bold block mb-1.5">
+            How It Works
+          </span>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white drop-shadow-md">
+            Four Steps to <span className="gradient-text">Complete Resolution</span>
+          </h2>
+        </header>
+
         {/* Horizontally Scrolling Slides Container */}
         <motion.div
           style={{ x }}
-          className="relative z-10 flex h-screen w-[500vw] will-change-transform items-center"
+          className="relative z-10 flex flex-1 w-[500vw] will-change-transform items-center pb-8"
         >
           {/* ── SLIDE 0: Overview Landing Slide ── */}
-          <div className="w-screen h-screen flex items-center justify-center px-4 sm:px-8 shrink-0">
-            <div className="max-w-4xl mx-auto text-center flex flex-col items-center">
-              {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-6 text-xs font-semibold tracking-wider uppercase rounded-full bg-accent-violet/15 text-accent-violet-light border border-accent-violet/30 backdrop-blur-md shadow-[0_0_20px_rgba(139,92,246,0.25)]">
-                <Sparkles className="w-3.5 h-3.5 text-accent-cyan" />
-                How It Works
-              </div>
-
-              {/* Title */}
-              <h2 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.12] mb-6">
-                Four Steps to <span className="gradient-text">Complete Resolution</span>
-              </h2>
-
+          <div className="w-screen h-full flex items-center justify-center px-4 sm:px-8 shrink-0">
+            <div className="max-w-3xl mx-auto text-center flex flex-col items-center">
               {/* Description */}
-              <p className="max-w-2xl mx-auto text-base sm:text-lg md:text-xl text-slate-300 leading-relaxed mb-10">
+              <p className="max-w-2xl mx-auto text-base sm:text-lg md:text-xl text-slate-300 leading-relaxed mb-8">
                 Every conversation follows a proven path from first contact to full resolution — powered by AI that never sleeps.
               </p>
 
               {/* 4 Steps Visual Flow Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 w-full max-w-3xl mb-10">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 w-full max-w-3xl mb-8">
                 {steps.map((st, i) => {
                   const Icon = st.icon;
                   return (
@@ -226,7 +224,7 @@ export default function Storytelling() {
             return (
               <div
                 key={stage.step}
-                className="w-screen h-screen flex items-center justify-center px-4 sm:px-10 lg:px-16 shrink-0"
+                className="w-screen h-full flex items-center justify-center px-4 sm:px-10 lg:px-16 shrink-0"
               >
                 <div className="max-w-5xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
                   {/* Left Column: Step Details */}
