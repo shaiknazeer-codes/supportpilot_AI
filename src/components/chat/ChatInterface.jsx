@@ -40,6 +40,11 @@ function createMessageId(role) {
   return "msg-" + Date.now() + "-" + messageSeq + "-" + role;
 }
 
+function cleanMessageText(text) {
+  if (!text || typeof text !== "string") return "";
+  return text.replace(/\*\*/g, "").replace(/\*/g, "");
+}
+
 const SUGGESTED_PROMPTS = [
   {
     title: "🏥 Hospital Consultation",
@@ -63,10 +68,167 @@ const SUGGESTED_PROMPTS = [
   },
 ];
 
+function MovieShowtimesInteractive({ result, onSelectSlot, onFillInput }) {
+  const [selectedDate, setSelectedDate] = useState("Today");
+  const [selectedTheater, setSelectedTheater] = useState(null);
+  const [selectedTiming, setSelectedTiming] = useState(null);
+
+  const dates = [
+    { id: "Today", label: "Today (Mon, 9 Nov)" },
+    { id: "Tomorrow", label: "Tomorrow (Tue, 10 Nov)" },
+    { id: "Wednesday", label: "Wed, 11 Nov" },
+  ];
+
+  const handleTimingClick = (theaterName, timing) => {
+    setSelectedTheater(theaterName);
+    setSelectedTiming(timing);
+  };
+
+  const handleConfirm = () => {
+    if (!selectedTheater || !selectedTiming) return;
+    const prompt = `Please book 2 tickets for ${result.movie} at ${selectedTheater} on ${selectedDate} at ${selectedTiming}. Confirm booking.`;
+    if (onSelectSlot) onSelectSlot(prompt);
+  };
+
+  const handleEditInChat = () => {
+    if (!selectedTheater || !selectedTiming) return;
+    const prompt = `Book 2 tickets for ${result.movie} at ${selectedTheater} on ${selectedDate} at ${selectedTiming}`;
+    if (onFillInput) onFillInput(prompt);
+  };
+
+  return (
+    <div className="mt-3 p-3.5 rounded-xl bg-accent-cyan/10 border border-accent-cyan/30 text-xs text-text-primary">
+      <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
+        <div className="flex items-center gap-1.5 font-semibold text-accent-cyan-light">
+          <Film className="w-4 h-4 text-accent-cyan" />
+          <span>{result.movie} — Indore Showtimes</span>
+        </div>
+        {result.rating && (
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-text-secondary">
+            {result.rating} · {result.duration}
+          </span>
+        )}
+      </div>
+
+      {/* 📅 Date Selection Row */}
+      <div className="mb-3">
+        <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold block mb-1.5">
+          Select Date:
+        </span>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {dates.map((d) => (
+            <button
+              key={d.id}
+              type="button"
+              onClick={() => setSelectedDate(d.id)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer ${
+                selectedDate === d.id
+                  ? "bg-accent-cyan text-bg-primary font-bold shadow-md"
+                  : "bg-white/5 hover:bg-white/10 text-text-secondary border border-white/10"
+              }`}
+            >
+              📅 {d.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Theaters and Showtimes */}
+      <div className="space-y-2.5">
+        {result.theaters?.map((t) => (
+          <div
+            key={t.name}
+            className={`p-2.5 rounded-lg border transition-all ${
+              selectedTheater === t.name
+                ? "bg-accent-cyan/15 border-accent-cyan/50"
+                : "bg-bg-primary/90 border-border-subtle"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-2 mb-1.5">
+              <div>
+                <span className="font-semibold text-text-primary flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-accent-violet-light" />
+                  {t.name}
+                </span>
+                <span className="text-[10px] text-text-muted block">{t.location}</span>
+              </div>
+              <span className="text-[11px] font-mono font-bold text-emerald-400">
+                {t.price}
+              </span>
+            </div>
+
+            {/* Timing Buttons */}
+            <div className="flex items-center gap-1.5 flex-wrap mt-2">
+              {t.timings?.map((timing) => {
+                const isSelected = selectedTheater === t.name && selectedTiming === timing;
+                return (
+                  <button
+                    key={timing}
+                    type="button"
+                    onClick={() => handleTimingClick(t.name, timing)}
+                    className={`px-2.5 py-1 rounded text-[11px] font-mono transition-all cursor-pointer flex items-center gap-1 ${
+                      isSelected
+                        ? "bg-accent-cyan text-bg-primary font-bold shadow-[0_0_10px_#06b6d4]"
+                        : "bg-accent-cyan/15 hover:bg-accent-cyan/30 text-accent-cyan-light hover:text-white border border-accent-cyan/30"
+                    }`}
+                    title="Click to select this showtime"
+                  >
+                    <span>🕒 {timing}</span>
+                  </button>
+                );
+              })}
+              <span className="text-[10px] text-text-muted ml-auto font-mono">
+                {t.formats?.join(" · ")}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Confirmation & Action Panel */}
+      {selectedTiming && selectedTheater && (
+        <div className="mt-3 p-3 rounded-xl bg-gradient-to-r from-accent-violet/20 to-accent-cyan/20 border border-accent-cyan/40">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-accent-cyan-light block">
+                Selected Booking:
+              </span>
+              <p className="text-xs font-semibold text-white mt-0.5">
+                {result.movie} · {selectedTheater}
+              </p>
+              <p className="text-[11px] text-emerald-400 font-mono mt-0.5">
+                📅 {selectedDate} at {selectedTiming}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleConfirm}
+                className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-accent-violet to-accent-cyan text-white text-xs font-bold shadow-lg hover:opacity-90 transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Ticket className="w-3.5 h-3.5" />
+                Confirm & Book
+              </button>
+              <button
+                type="button"
+                onClick={handleEditInChat}
+                className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 text-[11px] font-medium transition-all cursor-pointer"
+                title="Populate chat box to edit seat count or details"
+              >
+                Edit in Chat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * Renders structured operational action badges and cards confirming real backend tool executions.
  */
-function ActionCard({ action, onSelectSlot }) {
+function ActionCard({ action, onSelectSlot, onFillInput }) {
   const { toolName, result, success } = action;
 
   if (toolName === "getHospitalsAndSlots") {
@@ -237,94 +399,52 @@ function ActionCard({ action, onSelectSlot }) {
       );
     }
 
-    // Stage 1: Movies List
+    // Stage 1: Movies List (Clickable to immediately load Indore showtimes)
     if (result?.movies && result.movies.length > 0) {
       return (
         <div className="mt-3 p-3.5 rounded-xl bg-accent-violet/10 border border-accent-violet/30 text-xs text-text-primary">
           <div className="flex items-center gap-2 mb-2 font-semibold text-accent-violet-light">
             <Film className="w-4 h-4 text-accent-cyan" />
-            <span>Currently Screening in Theaters</span>
+            <span>Currently Screening in Indore (BookMyShow)</span>
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-accent-violet/20 text-accent-violet-light ml-auto">
               Live Catalog
             </span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
             {result.movies.map((m) => (
-              <div
+              <button
                 key={m.title}
-                className="p-2.5 rounded-lg bg-bg-primary/80 border border-white/5 flex flex-col justify-between"
+                type="button"
+                onClick={() => onSelectSlot && onSelectSlot(`Show showtimes for ${m.title} in Indore`)}
+                className="p-2.5 rounded-lg bg-bg-primary/80 hover:bg-accent-violet/20 border border-white/5 hover:border-accent-violet/40 transition-all text-left flex flex-col justify-between cursor-pointer group"
               >
                 <div>
-                  <span className="font-semibold text-text-primary text-[12px] block">
+                  <span className="font-semibold text-text-primary group-hover:text-accent-cyan text-[12px] block">
                     {m.title}
                   </span>
                   <span className="text-[10px] text-text-muted block mt-0.5">
                     {m.genre} · {m.duration} · {m.rating}
                   </span>
                 </div>
-                <div className="mt-2 text-[10px] text-accent-cyan">
-                  {m.theatersAvailable?.length || 3} Theaters Available
+                <div className="mt-2 text-[10px] text-accent-cyan flex items-center justify-between">
+                  <span>{m.theatersAvailable?.length || 3} Indore Venues</span>
+                  <span className="text-accent-violet-light group-hover:underline">View Shows →</span>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
       );
     }
 
-    // Stage 2 & 3: Theaters and Showtimes
+    // Stage 2 & 3: Theaters and Showtimes with Interactive Date & Time Buttons
     if (result?.theaters && result.theaters.length > 0) {
       return (
-        <div className="mt-3 p-3.5 rounded-xl bg-accent-cyan/10 border border-accent-cyan/30 text-xs text-text-primary">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5 font-semibold text-accent-cyan-light">
-              <Film className="w-4 h-4 text-accent-cyan" />
-              <span>{result.movie} — Cinema Showtimes</span>
-            </div>
-            {result.rating && (
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-text-secondary">
-                {result.rating} · {result.duration}
-              </span>
-            )}
-          </div>
-          <div className="space-y-2.5 mt-2">
-            {result.theaters.map((t) => (
-              <div
-                key={t.name}
-                className="p-2.5 rounded-lg bg-bg-primary/90 border border-border-subtle"
-              >
-                <div className="flex items-start justify-between gap-2 mb-1.5">
-                  <div>
-                    <span className="font-semibold text-text-primary flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-accent-violet-light" />
-                      {t.name}
-                    </span>
-                    <span className="text-[10px] text-text-muted block">{t.location}</span>
-                  </div>
-                  <span className="text-[11px] font-mono font-medium text-emerald-400">
-                    {t.price}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 flex-wrap mt-2">
-                  {t.timings?.map((timing) => (
-                    <button
-                      key={timing}
-                      type="button"
-                      onClick={() => onSelectSlot && onSelectSlot(`${timing} at ${t.name}`, result.movie)}
-                      className="px-2 py-1 rounded bg-accent-cyan/15 hover:bg-accent-cyan/30 border border-accent-cyan/30 text-[10px] font-mono text-accent-cyan-light hover:text-white transition-all cursor-pointer"
-                      title="Click to select showtime"
-                    >
-                      {timing}
-                    </button>
-                  ))}
-                  <span className="text-[10px] text-text-muted ml-auto font-mono">
-                    {t.formats?.join(" · ")}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <MovieShowtimesInteractive
+          result={result}
+          onSelectSlot={onSelectSlot}
+          onFillInput={onFillInput}
+        />
       );
     }
   }
@@ -565,13 +685,22 @@ export default function ChatInterface() {
     }
   };
 
-  const handleSelectSlot = (slotIso, date) => {
-    const timeFormatted = new Date(slotIso).toLocaleTimeString([], {
+  const handleSelectSlot = (promptOrIso, date) => {
+    if (typeof promptOrIso === "string" && (promptOrIso.includes("book") || promptOrIso.includes("showtimes") || promptOrIso.includes("ticket"))) {
+      handleSendMessage(promptOrIso);
+      return;
+    }
+    const timeFormatted = new Date(promptOrIso).toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
       timeZone: "UTC",
     });
     handleSendMessage(`I'd like to book the ${timeFormatted} UTC slot on ${date}. Please confirm my appointment.`);
+  };
+
+  const handleFillInput = (text) => {
+    setInput(text);
+    setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 50);
   };
 
   const handleRetry = () => {
@@ -713,7 +842,7 @@ export default function ChatInterface() {
                 }`}
               >
                 <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                  {message.content}
+                  {cleanMessageText(message.content)}
                 </div>
 
                 {/* Render Structured Tool Action Badges */}
@@ -724,6 +853,7 @@ export default function ChatInterface() {
                         key={i}
                         action={action}
                         onSelectSlot={handleSelectSlot}
+                        onFillInput={handleFillInput}
                       />
                     ))}
                   </div>

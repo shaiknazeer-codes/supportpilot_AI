@@ -138,12 +138,12 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       });
 
       reply =
-        `🎬 **Which movie would you like to watch in Indore?**\n\n` +
+        `🎬 Which movie would you like to watch in Indore?\n\n` +
         `Here are the latest movies currently screening across Indore multiplexes (BookMyShow Live):\n` +
         MOVIE_CATALOG.map(
-          (m, i) => `${i + 1}. **${m.title}** (${m.genre} · ${m.duration} · ${m.language})`
+          (m, i) => `${i + 1}. ${m.title} (${m.genre} · ${m.duration} · ${m.language})`
         ).join("\n") +
-        `\n\nPlease let me know which movie you'd like to book tickets for in Indore!`;
+        `\n\nPlease select a movie using the cards below or let me know your choice!`;
     }
     // STEP 2: Once movie is chosen, show cinema locations where it is available
     else if (!selectedTheater) {
@@ -160,11 +160,11 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       });
 
       reply =
-        `Great choice! **${selectedMovie.title}** is currently screening at these Indore cinema venues:\n\n` +
+        `Great choice! ${selectedMovie.title} is currently screening at these Indore cinema venues:\n\n` +
         selectedMovie.theaters
           .map(
             (t) =>
-              `📍 **${t.name}**\n   • Location: ${t.location}\n   • Formats: ${t.formats.join(", ")} · Ticket Price: ${t.price}`
+              `📍 ${t.name}\n   • Location: ${t.location}\n   • Formats: ${t.formats.join(", ")} · Ticket Price: ${t.price}`
           )
           .join("\n\n") +
         `\n\nWhich Indore cinema location or theater would you prefer?`;
@@ -187,25 +187,36 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       });
 
       reply =
-        `Here are the available show timings for **${selectedMovie.title}** at **${selectedTheater.name}** (${selectedTheater.location}):\n\n` +
+        `Here are the available show timings for ${selectedMovie.title} at ${selectedTheater.name} (${selectedTheater.location}):\n\n` +
+        `📅 Available Dates: Today, Tomorrow, Wed 11 Nov\n\n` +
         selectedTheater.timings
-          .map((tm) => `🕒 **${tm}** (${selectedTheater.formats.join(", ")})`)
+          .map((tm) => `🕒 ${tm} (${selectedTheater.formats.join(", ")})`)
           .join("\n") +
-        `\n\nWhich showtime works best for you, and how many tickets/seats would you like to book?`;
+        `\n\nPlease select your preferred date and showtime using the buttons below, or reply with your timing and number of seats!`;
     }
     // STEP 4: Confirm booking details
     else if (!isConfirmed) {
+      let selectedDate = "Today";
+      if (userMessagesText.includes("tomorrow")) selectedDate = "Tomorrow";
+      else if (userMessagesText.includes("today")) selectedDate = "Today";
+      else if (userMessagesText.includes("wed") || userMessagesText.includes("wednesday")) selectedDate = "Wednesday";
+
       reply =
-        `🎟️ **Movie Ticket Reservation Summary:**\n` +
-        `• **Movie:** ${selectedMovie.title}\n` +
-        `• **Cinema:** ${selectedTheater.name} (${selectedTheater.location})\n` +
-        `• **Showtime:** Today at ${selectedTiming}\n` +
-        `• **Seats:** ${seatsCount} Ticket(s) (Reserved Row F)\n` +
-        `• **Price per Ticket:** ${selectedTheater.price}\n\n` +
-        `To confirm and secure your tickets in our database, please reply **'Confirm'** (or provide your name and email).`;
+        `🎟️ Movie Ticket Reservation Summary:\n` +
+        `• Movie: ${selectedMovie.title}\n` +
+        `• Cinema: ${selectedTheater.name} (${selectedTheater.location})\n` +
+        `• Date & Showtime: ${selectedDate} at ${selectedTiming}\n` +
+        `• Seats: ${seatsCount} Ticket(s) (Reserved Row F)\n` +
+        `• Price per Ticket: ${selectedTheater.price}\n\n` +
+        `To confirm and secure your tickets in our database, please reply 'Confirm' (or provide your name and email).`;
     }
     // STEP 5: Book ticket in MongoDB
     else {
+      let selectedDate = "Today";
+      if (userMessagesText.includes("tomorrow")) selectedDate = "Tomorrow";
+      else if (userMessagesText.includes("today")) selectedDate = "Today";
+      else if (userMessagesText.includes("wed") || userMessagesText.includes("wednesday")) selectedDate = "Wednesday";
+
       const toolResult = await executeToolCall(
         "bookMovieTicket",
         JSON.stringify({
@@ -213,6 +224,7 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
           theater: selectedTheater.name,
           location: selectedTheater.location,
           showtime: selectedTiming,
+          showDate: selectedDate,
           seatsCount,
           customerName,
           customerEmail: email,
@@ -238,13 +250,13 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
 
       if (toolResult.success) {
         reply =
-          `✅ **Your Movie Tickets are Confirmed!**\n\n` +
-          `🎉 **Booking ID:** ${toolResult.bookingId}\n` +
-          `🎬 **Movie:** ${selectedMovie.title}\n` +
-          `📍 **Cinema:** ${selectedTheater.name} (${selectedTheater.location})\n` +
-          `🕒 **Showtime:** ${selectedTiming}\n` +
-          `💺 **Seats:** ${toolResult.seatNumbers || seatsCount + " Reserved Seats"}\n` +
-          `📧 A digital ticket pass has been queued for **${email}**.\n\nEnjoy your movie! 🍿`;
+          `✅ Your Movie Tickets are Confirmed!\n\n` +
+          `🎉 Booking ID: ${toolResult.bookingId}\n` +
+          `🎬 Movie: ${selectedMovie.title}\n` +
+          `📍 Cinema: ${selectedTheater.name} (${selectedTheater.location})\n` +
+          `📅 Date & Showtime: ${selectedDate} at ${selectedTiming}\n` +
+          `💺 Seats: ${toolResult.seatNumbers || seatsCount + " Reserved Seats"}\n` +
+          `📧 A digital ticket pass has been queued for ${email}.\n\nEnjoy your movie! 🍿`;
       } else {
         reply =
           toolResult.message ||
@@ -347,11 +359,11 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       });
 
       reply =
-        `🏥 **Which hospital would you like to schedule your consultation at?**\n\n` +
+        `🏥 Which hospital would you like to schedule your consultation at?\n\n` +
         `Here are our premier partner hospitals:\n` +
         HOSPITAL_CATALOG.map(
           (h, i) =>
-            `${i + 1}. **${h.name}**\n   • Location: ${h.location}\n   • Specialties: ${h.departments.join(", ")}\n   • Consultation Fee: ${h.consultationFee}`
+            `${i + 1}. ${h.name}\n   • Location: ${h.location}\n   • Specialties: ${h.departments.join(", ")}\n   • Consultation Fee: ${h.consultationFee}`
         ).join("\n\n") +
         `\n\nPlease let me know which hospital you would like to visit!`;
     }
@@ -370,7 +382,7 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       });
 
       reply =
-        `Great choice! **${selectedHospital.name}** offers specialist consultations on **${selectedHospital.availableDays.join(", ")}**.\n\n` +
+        `Great choice! ${selectedHospital.name} offers specialist consultations on ${selectedHospital.availableDays.join(", ")}.\n\n` +
         `Which day or date works best for you (e.g. Monday, Tomorrow, or a specific date)?`;
     }
     // STEP 3: Show & Ask Timings if not specified
@@ -391,19 +403,19 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       });
 
       reply =
-        `Here are the available consultation timings for **${selectedHospital.name}** on **${selectedDay}**:\n\n` +
-        selectedHospital.timings.map((t) => `🕒 **${t}** (Specialist Slot)`).join("\n") +
+        `Here are the available consultation timings for ${selectedHospital.name} on ${selectedDay}:\n\n` +
+        selectedHospital.timings.map((t) => `🕒 ${t} (Specialist Slot)`).join("\n") +
         `\n\nWhich timing slot works best for you?`;
     }
     // STEP 4: Summary & Ask Confirmation
     else if (!isConfirmed) {
       reply =
-        `📋 **Consultation Appointment Summary:**\n` +
-        `• **Hospital:** ${selectedHospital.name} (${selectedHospital.location})\n` +
-        `• **Department:** General Medicine / Outpatient\n` +
-        `• **Day & Time:** ${selectedDay} at ${selectedTime}\n` +
-        `• **Consultation Fee:** ${selectedHospital.consultationFee}\n\n` +
-        `To confirm and secure your consultation appointment in our database, please reply **'Confirm'** (or provide your name and email).`;
+        `📋 Consultation Appointment Summary:\n` +
+        `• Hospital: ${selectedHospital.name} (${selectedHospital.location})\n` +
+        `• Department: General Medicine / Outpatient\n` +
+        `• Day & Time: ${selectedDay} at ${selectedTime}\n` +
+        `• Consultation Fee: ${selectedHospital.consultationFee}\n\n` +
+        `To confirm and secure your consultation appointment in our database, please reply 'Confirm' (or provide your name and email).`;
     }
     // STEP 5: At Last Confirmed! Save to MongoDB
     else {
@@ -438,13 +450,13 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
 
       if (toolResult.success) {
         reply =
-          `✅ **Your Consultation Appointment is Confirmed!**\n\n` +
-          `🎉 **Booking ID:** ${toolResult.bookingId}\n` +
-          `🏥 **Hospital:** ${selectedHospital.name}\n` +
-          `📍 **Location:** ${selectedHospital.location}\n` +
-          `📅 **Appointment:** ${selectedDay} at ${selectedTime}\n` +
-          `👤 **Patient:** ${customerName}\n` +
-          `📧 A confirmation notice and appointment pass have been sent to **${email}**.\n\nTake care! 🩺`;
+          `✅ Your Consultation Appointment is Confirmed!\n\n` +
+          `🎉 Booking ID: ${toolResult.bookingId}\n` +
+          `🏥 Hospital: ${selectedHospital.name}\n` +
+          `📍 Location: ${selectedHospital.location}\n` +
+          `📅 Appointment: ${selectedDay} at ${selectedTime}\n` +
+          `👤 Patient: ${customerName}\n` +
+          `📧 A confirmation notice and appointment pass have been sent to ${email}.\n\nTake care! 🩺`;
       } else {
         reply =
           toolResult.message ||
