@@ -6,7 +6,6 @@ import Hero from "@/components/sections/Hero";
 import ChatPreview from "@/components/sections/ChatPreview";
 import Storytelling from "@/components/sections/Storytelling";
 import Features from "@/components/sections/Features";
-import DashboardPreview from "@/components/sections/DashboardPreview";
 import CallToAction from "@/components/sections/CallToAction";
 
 export default function Home() {
@@ -18,7 +17,6 @@ export default function Home() {
         <ChatPreview />
         <Storytelling />
         <Features />
-        <DashboardPreview />
         <CallToAction />
       </main>
       <Footer />
