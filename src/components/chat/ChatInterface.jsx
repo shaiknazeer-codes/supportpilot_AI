@@ -1037,26 +1037,10 @@ export default function ChatInterface() {
   const messagesContainerRef = useRef(null);
   const inputRef = useRef(null);
 
-  const scrollToBottom = () => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTo({
-        top: messagesContainerRef.current.scrollHeight,
-        behavior: "smooth",
-      });
-    }
-  };
-
   // Keep window at top when entering /chat page
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
-
-  // Only scroll the inner chat container when messages or state change
-  useEffect(() => {
-    if (messages.length > 0 || isLoading || errorState) {
-      scrollToBottom();
-    }
-  }, [messages, isLoading, errorState]);
 
   const formatTimestamp = (date) => {
     if (!mounted) return "";
@@ -1128,7 +1112,6 @@ export default function ChatInterface() {
       });
     } finally {
       setIsLoading(false);
-      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 100);
     }
   };
 

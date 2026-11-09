@@ -470,16 +470,8 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       });
 
       reply =
-        `🏥 In which medical field or doctor specialty would you like to book an appointment in Indore?\n\n` +
-        `Available Medical Fields & Specialties:\n` +
-        HEALTHCARE_SPECIALTIES.map(
-          (s, i) => `${i + 1}. ${s.name} (${s.description})`
-        ).join("\n") +
-        `\n\nPremier Indore Hospitals:\n` +
-        HOSPITAL_CATALOG.map(
-          (h) => `• ${h.name} (${h.location}) · Fee: ${h.consultationFee}`
-        ).join("\n") +
-        `\n\nPlease let me know which medical field (e.g. Skin Doctor, Heart Specialist, Bone & Joint, or General Physician) and which Indore hospital you would like to visit!`;
+        "🏥 In which medical field or doctor specialty would you like to book an appointment in Indore?\n\n" +
+        "Please select your preferred medical field and Indore hospital below to check doctor availability and schedule your consultation:";
     }
     // STEP 2A: If specialty is specified but hospital is not
     else if (selectedSpecialty && !selectedHospital) {
@@ -505,19 +497,7 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       });
 
       reply =
-        `Great! Here are the premier Indore hospitals with specialists in ${selectedSpecialty.name}:\n\n` +
-        hospitalsToList
-          .map((h) => {
-            const docKey = Object.keys(h.doctors).find(
-              (k) =>
-                k.toLowerCase().includes(selectedSpecialty.shortName.toLowerCase()) ||
-                k.toLowerCase().includes(selectedSpecialty.id)
-            );
-            const doc = docKey ? h.doctors[docKey] : "Senior Consultant";
-            return `🏥 ${h.name}\n   • Location: ${h.location}\n   • Specialist: ${doc}\n   • Consultation Fee: ${h.consultationFee} · Days: ${h.availableDays.join(", ")}`;
-          })
-          .join("\n\n") +
-        `\n\nWhich Indore hospital would you prefer for your ${selectedSpecialty.shortName} consultation?`;
+        `Great! Please select your preferred Indore hospital and consultation timing below for your ${selectedSpecialty.shortName} appointment:`;
     }
     // STEP 2B: If hospital is specified but specialty is not
     else if (selectedHospital && !selectedSpecialty) {
@@ -534,14 +514,7 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       });
 
       reply =
-        `Excellent choice! ${selectedHospital.name} (${selectedHospital.location}) offers top medical specialists across these fields:\n\n` +
-        selectedHospital.departments
-          .map((dept) => {
-            const doc = selectedHospital.doctors[dept] || "Senior Consultant";
-            return `• ${dept} (Specialist: ${doc})`;
-          })
-          .join("\n") +
-        `\n\nConsultation Fee: ${selectedHospital.consultationFee}\nAvailable Days: ${selectedHospital.availableDays.join(", ")}\n\nWhich medical field or doctor specialty do you need an appointment in?`;
+        `Excellent choice! Please select your preferred medical specialty and consultation timing at ${selectedHospital.name} below:`;
     }
     // STEP 3: Both hospital and specialty known, ask day/date
     else if (!selectedDay) {
