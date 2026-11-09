@@ -596,6 +596,8 @@ export async function executeGetMovieShowtimes(args = {}) {
       formats: t.formats,
       price: t.price,
       timings: t.timings,
+      availableSeats: t.availableSeats || 48,
+      totalSeats: t.totalSeats || 90,
     })),
     message: `Found ${theaters.length} cinema location(s) screening '${matchedMovie.title}'.`,
   };

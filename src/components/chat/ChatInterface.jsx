@@ -26,6 +26,8 @@ import {
   Ticket,
   Building2,
   Stethoscope,
+  Plus,
+  Minus,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 
@@ -72,6 +74,7 @@ function MovieShowtimesInteractive({ result, onSelectSlot, onFillInput }) {
   const [selectedDate, setSelectedDate] = useState("Today");
   const [selectedTheater, setSelectedTheater] = useState(null);
   const [selectedTiming, setSelectedTiming] = useState(null);
+  const [ticketsCount, setTicketsCount] = useState(2);
 
   const dates = [
     { id: "Today", label: "Today (Mon, 9 Nov)" },
@@ -84,15 +87,19 @@ function MovieShowtimesInteractive({ result, onSelectSlot, onFillInput }) {
     setSelectedTiming(timing);
   };
 
+  const selectedTheaterObj = result.theaters?.find((t) => t.name === selectedTheater);
+  const unitPrice = parseInt((selectedTheaterObj?.price || "₹250").replace(/[^\d]/g, ""), 10) || 250;
+  const totalPrice = unitPrice * ticketsCount;
+
   const handleConfirm = () => {
     if (!selectedTheater || !selectedTiming) return;
-    const prompt = `Please book 2 tickets for ${result.movie} at ${selectedTheater} on ${selectedDate} at ${selectedTiming}. Confirm booking.`;
+    const prompt = `Please book ${ticketsCount} tickets for ${result.movie} at ${selectedTheater} on ${selectedDate} at ${selectedTiming}. Confirm booking.`;
     if (onSelectSlot) onSelectSlot(prompt);
   };
 
   const handleEditInChat = () => {
     if (!selectedTheater || !selectedTiming) return;
-    const prompt = `Book 2 tickets for ${result.movie} at ${selectedTheater} on ${selectedDate} at ${selectedTiming}`;
+    const prompt = `Book ${ticketsCount} tickets for ${result.movie} at ${selectedTheater} on ${selectedDate} at ${selectedTiming}`;
     if (onFillInput) onFillInput(prompt);
   };
 
@@ -151,10 +158,21 @@ function MovieShowtimesInteractive({ result, onSelectSlot, onFillInput }) {
                   {t.name}
                 </span>
                 <span className="text-[10px] text-text-muted block">{t.location}</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-mono font-medium border border-emerald-500/20">
+                    🟢 {t.availableSeats || 48} seats available
+                  </span>
+                  <span className="text-[10px] text-text-muted font-mono">
+                    Total: {t.totalSeats || 90}
+                  </span>
+                </div>
               </div>
-              <span className="text-[11px] font-mono font-bold text-emerald-400">
-                {t.price}
-              </span>
+              <div className="text-right">
+                <span className="text-[12px] font-mono font-bold text-emerald-400 block">
+                  {t.price}
+                </span>
+                <span className="text-[9px] text-text-muted">per ticket</span>
+              </div>
             </div>
 
             {/* Timing Buttons */}
@@ -185,14 +203,19 @@ function MovieShowtimesInteractive({ result, onSelectSlot, onFillInput }) {
         ))}
       </div>
 
-      {/* Confirmation & Action Panel */}
+      {/* Confirmation & Action Panel with Quantity Selector */}
       {selectedTiming && selectedTheater && (
-        <div className="mt-3 p-3 rounded-xl bg-gradient-to-r from-accent-violet/20 to-accent-cyan/20 border border-accent-cyan/40">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="mt-3 p-3.5 rounded-xl bg-gradient-to-r from-accent-violet/20 to-accent-cyan/20 border border-accent-cyan/40">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <span className="text-[10px] uppercase font-bold text-accent-cyan-light block">
-                Selected Booking:
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase font-bold text-accent-cyan-light">
+                  Selected Booking
+                </span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-medium">
+                  🟢 {selectedTheaterObj?.availableSeats || 48} seats open
+                </span>
+              </div>
               <p className="text-xs font-semibold text-white mt-0.5">
                 {result.movie} · {selectedTheater}
               </p>
@@ -200,23 +223,57 @@ function MovieShowtimesInteractive({ result, onSelectSlot, onFillInput }) {
                 📅 {selectedDate} at {selectedTiming}
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleConfirm}
-                className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-accent-violet to-accent-cyan text-white text-xs font-bold shadow-lg hover:opacity-90 transition-all cursor-pointer flex items-center gap-1.5"
-              >
-                <Ticket className="w-3.5 h-3.5" />
-                Confirm & Book
-              </button>
-              <button
-                type="button"
-                onClick={handleEditInChat}
-                className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 text-[11px] font-medium transition-all cursor-pointer"
-                title="Populate chat box to edit seat count or details"
-              >
-                Edit in Chat
-              </button>
+
+            {/* Ticket Quantity Selector & Pricing */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-1.5 bg-bg-primary/80 border border-white/10 px-2 py-1 rounded-lg">
+                <span className="text-[10px] text-text-muted font-medium">Qty:</span>
+                <button
+                  type="button"
+                  onClick={() => setTicketsCount((prev) => Math.max(1, prev - 1))}
+                  className="w-5 h-5 rounded flex items-center justify-center bg-white/10 hover:bg-white/20 text-accent-cyan text-xs font-bold transition-all cursor-pointer"
+                  title="Decrease tickets"
+                >
+                  <Minus className="w-3 h-3" />
+                </button>
+                <span className="w-5 text-center text-xs font-mono font-bold text-white">
+                  {ticketsCount}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setTicketsCount((prev) => Math.min(10, prev + 1))}
+                  className="w-5 h-5 rounded flex items-center justify-center bg-white/10 hover:bg-white/20 text-accent-cyan text-xs font-bold transition-all cursor-pointer"
+                  title="Increase tickets"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              </div>
+
+              <div className="text-right">
+                <span className="text-[9px] text-text-muted block">Total Price</span>
+                <span className="text-xs font-mono font-bold text-emerald-300">
+                  ₹{totalPrice}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-accent-violet to-accent-cyan text-white text-xs font-bold shadow-lg hover:opacity-90 transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <Ticket className="w-3.5 h-3.5" />
+                  Confirm & Book
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEditInChat}
+                  className="px-2 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 text-[11px] font-medium transition-all cursor-pointer"
+                  title="Populate chat box to edit seat count or details"
+                >
+                  Edit
+                </button>
+              </div>
             </div>
           </div>
         </div>
