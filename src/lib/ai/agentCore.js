@@ -170,12 +170,8 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       });
 
       reply =
-        `🎬 Which movie would you like to watch in Indore?\n\n` +
-        `Here are the latest movies currently screening across Indore multiplexes (BookMyShow Live):\n` +
-        MOVIE_CATALOG.map(
-          (m, i) => `${i + 1}. ${m.title} (${m.genre} · ${m.duration} · ${m.language})`
-        ).join("\n") +
-        `\n\nPlease select a movie using the cards below or let me know your choice!`;
+        "🎬 Which movie would you like to watch in Indore?\n\n" +
+        "Please select a movie below to view available showtimes, multiplex venues, and seat availability:";
     }
     // STEP 2: Once movie is chosen, show cinema locations where it is available
     else if (!selectedTheater) {
@@ -192,14 +188,7 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       });
 
       reply =
-        `Great choice! ${selectedMovie.title} is currently screening at these Indore cinema venues:\n\n` +
-        selectedMovie.theaters
-          .map(
-            (t) =>
-              `📍 ${t.name}\n   • Location: ${t.location}\n   • Formats: ${t.formats.join(", ")} · Ticket Price: ${t.price}\n   • Available Seats: 🟢 ${t.availableSeats || 48} seats left`
-          )
-          .join("\n\n") +
-        `\n\nWhich Indore cinema location or theater would you prefer?`;
+        `Great choice! ${selectedMovie.title} is currently screening across premier Indore multiplexes. Please choose your preferred theater and showtime below:`;
     }
     // STEP 3: Once theater is chosen, show available show timings and seat layout
     else if (!selectedTiming) {
