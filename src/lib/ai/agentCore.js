@@ -22,32 +22,101 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       .join(" ") + " " + (userPrompt || "")
   ).toLowerCase();
 
-  // Detect Movie Ticket Booking Intent
-  // NOTE: Do NOT use bare "ticket" here — it conflicts with "support ticket". Use "movie ticket" or specific movie terms.
+  // 1. Detect Support Ticket Logging Intent (Bugs, errors, gateway timeouts, system incidents)
+  const isSupportTicketIntent =
+    userMessagesText.includes("support ticket") ||
+    userMessagesText.includes("raise a ticket") ||
+    userMessagesText.includes("create a ticket") ||
+    userMessagesText.includes("log a ticket") ||
+    userMessagesText.includes("open a ticket") ||
+    userMessagesText.includes("file a ticket") ||
+    userMessagesText.includes("gateway timeout") ||
+    userMessagesText.includes("504") ||
+    userMessagesText.includes("webhook") ||
+    (userMessagesText.includes("ticket") && (
+      userMessagesText.includes("issue") ||
+      userMessagesText.includes("error") ||
+      userMessagesText.includes("bug") ||
+      userMessagesText.includes("fail") ||
+      userMessagesText.includes("broken") ||
+      userMessagesText.includes("dev@") ||
+      userMessagesText.includes("urgent") ||
+      userMessagesText.includes("escalat")
+    ));
+
+  // 2. Detect Movie Ticket Booking Intent
   const isMovieIntent =
-    userMessagesText.includes("movie") ||
-    userMessagesText.includes("cinema") ||
-    userMessagesText.includes("theatre") ||
-    userMessagesText.includes("theater") ||
-    userMessagesText.includes("showtime") ||
-    userMessagesText.includes("seat") ||
-    /book\s*(\d+)?\s*tickets?/i.test(userMessagesText) ||
-    MOVIE_CATALOG.some((m) => {
-      const titleLower = m.title.toLowerCase();
-      const firstWord = titleLower.split(/[: ]/)[0];
-      return (
-        userMessagesText.includes(titleLower) ||
-        userMessagesText.includes(m.id) ||
-        (firstWord.length > 3 && userMessagesText.includes(firstWord))
-      );
-    });
+    !isSupportTicketIntent &&
+    (
+      userMessagesText.includes("movie") ||
+      userMessagesText.includes("cinema") ||
+      userMessagesText.includes("theatre") ||
+      userMessagesText.includes("theater") ||
+      userMessagesText.includes("showtime") ||
+      userMessagesText.includes("seat") ||
+      userMessagesText.includes("book ticket") ||
+      userMessagesText.includes("book tickets") ||
+      userMessagesText.includes("ticket booking") ||
+      userMessagesText.includes("tickets booking") ||
+      /(?:book|buy|reserve|purchase|get|want|need)\s+(?:a\s+|me\s+|the\s+|some\s+|\d+\s+)?(?:movie\s+|cinema\s+|film\s+)?tickets?/i.test(userMessagesText) ||
+      /(?:ticket|tickets)\s+booking/i.test(userMessagesText) ||
+      /booking\s+(?:a\s+|the\s+)?tickets?/i.test(userMessagesText) ||
+      MOVIE_CATALOG.some((m) => {
+        const titleLower = m.title.toLowerCase();
+        const firstWord = titleLower.split(/[: ]/)[0];
+        return (
+          userMessagesText.includes(titleLower) ||
+          userMessagesText.includes(m.id) ||
+          (firstWord.length > 3 && userMessagesText.includes(firstWord))
+        );
+      })
+    );
 
-  const isConsultationBooking =
-    (lower.includes("demo") || lower.includes("onboarding") || lower.includes("consultation")) &&
-    !userMessagesText.includes("movie") &&
-    !userMessagesText.includes("ticket");
+  // 3. Detect Healthcare / Doctor Appointment Intent
+  const isHealthcareIntent =
+    (
+      userMessagesText.includes("hospital") ||
+      userMessagesText.includes("doctor") ||
+      userMessagesText.includes("clinic") ||
+      userMessagesText.includes("consult") ||
+      userMessagesText.includes("medical") ||
+      userMessagesText.includes("health") ||
+      userMessagesText.includes("skin") ||
+      userMessagesText.includes("derma") ||
+      userMessagesText.includes("heart") ||
+      userMessagesText.includes("cardio") ||
+      userMessagesText.includes("ortho") ||
+      userMessagesText.includes("bone") ||
+      userMessagesText.includes("physician") ||
+      userMessagesText.includes("neuro") ||
+      userMessagesText.includes("pediatric") ||
+      userMessagesText.includes("gynec") ||
+      /\bent\b/i.test(userMessagesText) ||
+      /\beye\b/i.test(userMessagesText) ||
+      userMessagesText.includes("dental") ||
+      userMessagesText.includes("appointment") ||
+      userMessagesText.includes("patient") ||
+      /(?:book|schedule|make|need|want|get|set up)\s+(?:an?\s+)?appointment/i.test(userMessagesText) ||
+      /appointment\s+booking/i.test(userMessagesText) ||
+      HOSPITAL_CATALOG.some(
+        (h) => userMessagesText.includes(h.name.toLowerCase()) || userMessagesText.includes(h.id)
+      ) ||
+      ((userMessagesText.includes("schedule") || userMessagesText.includes("appointment") || userMessagesText.includes("slot")) && !isMovieIntent)
+    );
 
-  if (isMovieIntent && !isConsultationBooking && !lower.includes("bug") && !lower.includes("error") && !lower.includes("504")) {
+  // 4. Detect Dual Intent when user asks about both (e.g. "i want to book ticket or book appointment")
+  const isDualBookingIntent =
+    isMovieIntent &&
+    isHealthcareIntent &&
+    (userMessagesText.includes(" or ") || userMessagesText.includes(" / ") || userMessagesText.includes(" and ") || userMessagesText.includes("both"));
+
+  if (isDualBookingIntent) {
+    reply =
+      "I can help you with both!\n\n" +
+      "1. 🎬 Movie Ticket Booking: View currently running blockbusters across Indore multiplexes, select seats, and book tickets.\n" +
+      "2. 🏥 Doctor Appointments: Schedule a consultation with medical specialists at premier Indore hospitals.\n\n" +
+      "Which one would you like to book right now — Movie Tickets or Doctor Appointment?";
+  } else if (isMovieIntent && !lower.includes("bug") && !lower.includes("error") && !lower.includes("504")) {
     // 1. Identify if a movie has been chosen by the customer
     let selectedMovie = null;
     for (const m of MOVIE_CATALOG) {
@@ -299,31 +368,7 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
           "We could not complete your movie booking at this time. Please try again.";
       }
     }
-  } else if (
-    userMessagesText.includes("hospital") ||
-    userMessagesText.includes("doctor") ||
-    userMessagesText.includes("clinic") ||
-    userMessagesText.includes("consult") ||
-    userMessagesText.includes("medical") ||
-    userMessagesText.includes("health") ||
-    userMessagesText.includes("skin") ||
-    userMessagesText.includes("derma") ||
-    userMessagesText.includes("heart") ||
-    userMessagesText.includes("cardio") ||
-    userMessagesText.includes("ortho") ||
-    userMessagesText.includes("bone") ||
-    userMessagesText.includes("physician") ||
-    userMessagesText.includes("neuro") ||
-    userMessagesText.includes("pediatric") ||
-    userMessagesText.includes("gynec") ||
-    /\bent\b/i.test(userMessagesText) ||
-    /\beye\b/i.test(userMessagesText) ||
-    userMessagesText.includes("dental") ||
-    HOSPITAL_CATALOG.some(
-      (h) => userMessagesText.includes(h.name.toLowerCase()) || userMessagesText.includes(h.id)
-    ) ||
-    ((lower.includes("schedule") || lower.includes("appointment") || lower.includes("slot")) && !isMovieIntent)
-  ) {
+  } else if (isHealthcareIntent) {
     // Helper to test whole word or token safely
     const matchSpecialtyKeyword = (text, kw) => {
       if (!text || !kw) return false;
@@ -646,6 +691,7 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
     }
   } else if (
     (lower.includes("support ticket") || lower.includes("create ticket") || lower.includes("log ticket") ||
+     lower.includes("open a ticket") || lower.includes("file a ticket") || isSupportTicketIntent ||
      lower.includes("report issue") || lower.includes("bug") || lower.includes("error") ||
      lower.includes("504") || lower.includes("failing") || lower.includes("issue")) &&
     !isMovieIntent
