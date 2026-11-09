@@ -863,7 +863,7 @@ function ActionCard({ action, onSelectSlot, onFillInput }) {
                 key={m.title}
                 type="button"
                 onClick={() => onSelectSlot && onSelectSlot(`Show showtimes for ${m.title} in Indore`)}
-                className="p-2.5 rounded-lg bg-bg-primary/80 hover:bg-accent-violet/20 border border-white/5 hover:border-accent-violet/40 transition-all text-left flex flex-col justify-between cursor-pointer group"
+                className="p-2.5 rounded-lg bg-bg-primary/80 hover:bg-accent-violet/20 border border-white/5 hover:border-accent-violet/40 active:scale-[0.98] transition-all text-left flex flex-col justify-between cursor-pointer group"
               >
                 <div>
                   <span className="font-semibold text-text-primary group-hover:text-accent-cyan text-[12px] block">
@@ -875,7 +875,7 @@ function ActionCard({ action, onSelectSlot, onFillInput }) {
                 </div>
                 <div className="mt-2 text-[10px] text-accent-cyan flex items-center justify-between">
                   <span>{m.theatersAvailable?.length || 3} Indore Venues</span>
-                  <span className="text-accent-violet-light group-hover:underline">View Shows →</span>
+                  <span className="text-accent-violet-light group-hover:underline font-medium">View Shows →</span>
                 </div>
               </button>
             ))}
@@ -1036,11 +1036,38 @@ export default function ChatInterface() {
 
   const messagesContainerRef = useRef(null);
   const inputRef = useRef(null);
+  const latestMessageRef = useRef(null);
 
   // Keep window at top when entering /chat page
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  const scrollToLatestMessage = () => {
+    if (!messagesContainerRef.current) return;
+    if (latestMessageRef.current) {
+      const container = messagesContainerRef.current;
+      const targetTop = Math.max(0, latestMessageRef.current.offsetTop - 16);
+      container.scrollTo({
+        top: targetTop,
+        behavior: "smooth",
+      });
+    } else {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  const scrollToBottom = () => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+  };
 
   const formatTimestamp = (date) => {
     if (!mounted) return "";
@@ -1051,12 +1078,15 @@ export default function ChatInterface() {
     }).format(date ? new Date(date) : new Date());
   };
 
-  const handleSendMessage = async (textToSend) => {
+  const handleSendMessage = async (textToSend, options = {}) => {
     const content = (textToSend || input).trim();
     if (!content || isLoading) return;
 
     setErrorState(null);
     setInput("");
+
+    const isFollowUp = messages.length > 0;
+    const shouldScroll = Boolean(isFollowUp || options.autoScroll);
 
     const userMessage = {
       id: createMessageId("user"),
@@ -1068,6 +1098,10 @@ export default function ChatInterface() {
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setIsLoading(true);
+
+    if (shouldScroll) {
+      setTimeout(scrollToBottom, 50);
+    }
 
     try {
       const response = await fetch("/api/chat", {
@@ -1101,6 +1135,11 @@ export default function ChatInterface() {
           toolActions: data.toolActions || [],
         };
         setMessages((prev) => [...prev, assistantMessage]);
+
+        if (shouldScroll) {
+          setTimeout(scrollToLatestMessage, 100);
+          setTimeout(scrollToLatestMessage, 350);
+        }
       }
     } catch (err) {
       console.error("Chat request error:", err);
@@ -1117,7 +1156,7 @@ export default function ChatInterface() {
 
   const handleSelectSlot = (promptOrIso, date) => {
     if (typeof promptOrIso === "string" && (promptOrIso.includes("book") || promptOrIso.includes("showtimes") || promptOrIso.includes("ticket"))) {
-      handleSendMessage(promptOrIso);
+      handleSendMessage(promptOrIso, { autoScroll: true });
       return;
     }
     const timeFormatted = new Date(promptOrIso).toLocaleTimeString([], {
@@ -1125,7 +1164,7 @@ export default function ChatInterface() {
       minute: "2-digit",
       timeZone: "UTC",
     });
-    handleSendMessage(`I'd like to book the ${timeFormatted} UTC slot on ${date}. Please confirm my appointment.`);
+    handleSendMessage(`I'd like to book the ${timeFormatted} UTC slot on ${date}. Please confirm my appointment.`, { autoScroll: true });
   };
 
   const handleFillInput = (text) => {
@@ -1242,11 +1281,13 @@ export default function ChatInterface() {
         )}
 
         {/* Message Bubbles */}
-        {messages.map((message) => {
+        {messages.map((message, index) => {
           const isUser = message.role === "user";
+          const isLast = index === messages.length - 1;
           return (
             <motion.div
               key={message.id}
+              ref={isLast ? latestMessageRef : null}
               initial={{ opacity: 0, y: 10, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.25 }}
