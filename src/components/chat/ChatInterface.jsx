@@ -49,8 +49,8 @@ function cleanMessageText(text) {
 
 const SUGGESTED_PROMPTS = [
   {
-    title: "🏥 Hospital Consultation",
-    prompt: "I would like to schedule a hospital consultation. Which hospitals are available?",
+    title: "🏥 Indore Hospital Consultation",
+    prompt: "I want to book an appointment with a skin doctor at a hospital in Indore. What are the available dates and timings?",
     category: "Healthcare",
   },
   {
@@ -457,6 +457,273 @@ function MovieShowtimesInteractive({ result, onSelectSlot, onFillInput }) {
   );
 }
 
+function HospitalConsultationInteractive({ result, onSelectSlot, onFillInput }) {
+  const specialties = result.specialties || [
+    { id: "dermatology", name: "Dermatology / Skin Specialist", shortName: "Skin Doctor" },
+    { id: "cardiology", name: "Cardiology / Heart Specialist", shortName: "Heart Doctor" },
+    { id: "orthopedics", name: "Orthopedics / Bone & Joint Specialist", shortName: "Bone & Joint" },
+    { id: "general-medicine", name: "General Medicine / Physician", shortName: "General Physician" },
+    { id: "neurology", name: "Neurology / Brain & Nerve Specialist", shortName: "Neurologist" },
+    { id: "pediatrics", name: "Pediatrics / Child Specialist", shortName: "Child Doctor" },
+    { id: "gynecology", name: "Gynecology & Obstetrics / Women's Health", shortName: "Women's Health" },
+    { id: "ent", name: "ENT / Ear, Nose & Throat", shortName: "ENT Specialist" },
+    { id: "ophthalmology", name: "Ophthalmology / Eye Specialist", shortName: "Eye Doctor" },
+    { id: "dental", name: "Dental Surgery / Dentist", shortName: "Dentist" },
+  ];
+
+  const [selectedSpecialty, setSelectedSpecialty] = useState(
+    result.selectedSpecialty || "Dermatology / Skin Specialist"
+  );
+  const [selectedHospital, setSelectedHospital] = useState(
+    result.hospital || (result.hospitals && result.hospitals[0]?.name) || "Bombay Hospital Indore"
+  );
+  const [selectedDate, setSelectedDate] = useState(result.requestedDay || "Tomorrow");
+  const [selectedTiming, setSelectedTiming] = useState(null);
+
+  const dates = [
+    { id: "Today", label: "Today (Mon, 9 Nov)" },
+    { id: "Tomorrow", label: "Tomorrow (Tue, 10 Nov)" },
+    { id: "Wednesday", label: "Wed, 11 Nov" },
+    { id: "Thursday", label: "Thu, 12 Nov" },
+  ];
+
+  const currentHospitalObj = result.hospitals?.find((h) => h.name === selectedHospital) || result.hospitals?.[0] || {
+    name: "Bombay Hospital Indore",
+    location: "Ring Road, Scheme No. 94C, Near Velocity III, Indore",
+    fee: "₹700",
+    timings: ["09:30 AM", "11:15 AM", "01:30 PM", "04:30 PM", "06:45 PM"],
+    departments: ["Dermatology / Skin Specialist", "Cardiology / Heart Specialist", "Orthopedics / Bone & Joint Specialist"],
+    doctors: {
+      "Dermatology / Skin Specialist": "Dr. Ananya Dixit (Senior Dermatologist)",
+      "Cardiology / Heart Specialist": "Dr. Vivek Jain (Chief Cardiologist)",
+    },
+  };
+
+  let doctorName = "Specialist Consultant";
+  if (currentHospitalObj.doctors) {
+    const matchKey = Object.keys(currentHospitalObj.doctors).find(
+      (k) =>
+        k.toLowerCase().includes(selectedSpecialty.toLowerCase()) ||
+        selectedSpecialty.toLowerCase().includes(k.toLowerCase())
+    );
+    doctorName = matchKey ? currentHospitalObj.doctors[matchKey] : Object.values(currentHospitalObj.doctors)[0];
+  }
+
+  const handleTimingClick = (hospName, timing) => {
+    setSelectedHospital(hospName);
+    setSelectedTiming(timing);
+  };
+
+  const handleSpecialtyClick = (specName) => {
+    setSelectedSpecialty(specName);
+    if (result.hospitals) {
+      const matchHosp = result.hospitals.find((h) =>
+        h.departments?.some((d) => d.toLowerCase().includes(specName.toLowerCase()))
+      );
+      if (matchHosp) {
+        setSelectedHospital(matchHosp.name);
+      }
+    }
+  };
+
+  const handleConfirm = () => {
+    if (!selectedHospital || !selectedTiming) return;
+    const prompt = `Please book a consultation with ${doctorName} (${selectedSpecialty}) at ${selectedHospital} on ${selectedDate} at ${selectedTiming}. Confirm booking.`;
+    if (onSelectSlot) onSelectSlot(prompt);
+  };
+
+  const handleEditInChat = () => {
+    if (!selectedHospital || !selectedTiming) return;
+    const prompt = `Book appointment with ${doctorName} for ${selectedSpecialty} at ${selectedHospital} on ${selectedDate} at ${selectedTiming}`;
+    if (onFillInput) onFillInput(prompt);
+  };
+
+  return (
+    <div className="mt-3 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-text-primary">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-white/10">
+        <div className="flex items-center gap-1.5 font-semibold text-emerald-300">
+          <Building2 className="w-4 h-4 text-emerald-400" />
+          <span>Indore Healthcare Network — Specialist Appointments</span>
+        </div>
+        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
+          Indore, MP
+        </span>
+      </div>
+
+      {/* 🩺 Medical Field / Specialty Selector */}
+      <div className="mb-3">
+        <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold block mb-1.5">
+          Select Medical Field / Specialty:
+        </span>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {specialties.map((s) => {
+            const isSelected =
+              selectedSpecialty.toLowerCase().includes(s.shortName.toLowerCase()) ||
+              selectedSpecialty.toLowerCase() === s.name.toLowerCase();
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => handleSpecialtyClick(s.name)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1 ${
+                  isSelected
+                    ? "bg-emerald-500 text-bg-primary font-bold shadow-md scale-102"
+                    : "bg-white/5 hover:bg-white/10 text-text-secondary border border-white/10 hover:text-white"
+                }`}
+              >
+                <span>{s.shortName}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 📅 Date Selection Row */}
+      <div className="mb-3">
+        <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold block mb-1.5">
+          Select Date:
+        </span>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {dates.map((d) => (
+            <button
+              key={d.id}
+              type="button"
+              onClick={() => setSelectedDate(d.id)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer ${
+                selectedDate === d.id
+                  ? "bg-accent-cyan text-bg-primary font-bold shadow-md"
+                  : "bg-white/5 hover:bg-white/10 text-text-secondary border border-white/10"
+              }`}
+            >
+              📅 {d.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 🏥 Indore Hospital Cards with Specialist and Timing Slots */}
+      <div className="space-y-2.5">
+        {(result.hospitals || [currentHospitalObj]).map((h) => {
+          const isHospSelected = selectedHospital === h.name;
+          const docKey = h.doctors
+            ? Object.keys(h.doctors).find((k) =>
+                k.toLowerCase().includes(selectedSpecialty.toLowerCase()) ||
+                selectedSpecialty.toLowerCase().includes(k.toLowerCase())
+              )
+            : null;
+          const assignedDoc = docKey && h.doctors ? h.doctors[docKey] : Object.values(h.doctors || {})[0] || "Specialist Consultant";
+
+          return (
+            <div
+              key={h.name}
+              className={`p-2.5 rounded-lg border transition-all ${
+                isHospSelected
+                  ? "bg-emerald-500/15 border-emerald-500/50"
+                  : "bg-bg-primary/90 border-border-subtle"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2 mb-1.5">
+                <div>
+                  <span className="font-semibold text-text-primary flex items-center gap-1">
+                    <Building2 className="w-3.5 h-3.5 text-emerald-400" />
+                    {h.name}
+                  </span>
+                  <span className="text-[10px] text-text-muted block mt-0.5">{h.location}</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent-cyan/15 text-accent-cyan-light font-mono font-medium border border-accent-cyan/20">
+                      🩺 {assignedDoc}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-[12px] font-mono font-bold text-emerald-300 block">
+                    {h.fee || h.consultationFee || "₹700"}
+                  </span>
+                  <span className="text-[9px] text-text-muted">Consultation Fee</span>
+                </div>
+              </div>
+
+              {/* Timing Slots */}
+              <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                <span className="text-[10px] text-text-muted mr-1 font-medium">Slots:</span>
+                {(h.timings || ["09:30 AM", "11:15 AM", "02:00 PM", "04:30 PM", "06:45 PM"]).map((timing) => {
+                  const isTimingSelected = isHospSelected && selectedTiming === timing;
+                  return (
+                    <button
+                      key={timing}
+                      type="button"
+                      onClick={() => handleTimingClick(h.name, timing)}
+                      className={`px-2 py-1 rounded text-[10px] font-mono transition-all cursor-pointer flex items-center gap-1 ${
+                        isTimingSelected
+                          ? "bg-emerald-500 text-bg-primary font-bold shadow-[0_0_8px_#10b981]"
+                          : "bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 hover:text-white border border-emerald-500/30"
+                      }`}
+                      title="Click to select this consultation slot"
+                    >
+                      <span>🕒 {timing}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 📋 Confirmation & Action Panel */}
+      {selectedTiming && selectedHospital && (
+        <div className="mt-3.5 p-3.5 rounded-xl bg-gradient-to-r from-emerald-500/20 via-teal-500/15 to-accent-cyan/20 border border-emerald-500/40">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-emerald-300 block">
+                Selected Appointment
+              </span>
+              <p className="text-xs font-semibold text-white mt-0.5">
+                {doctorName} · {selectedSpecialty}
+              </p>
+              <p className="text-[11px] text-text-muted mt-0.5">
+                {selectedHospital}
+              </p>
+              <p className="text-[11px] text-emerald-400 font-mono mt-0.5">
+                📅 {selectedDate} at {selectedTiming}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="text-right mr-1">
+                <span className="text-[9px] text-text-muted block">Fee</span>
+                <span className="text-sm font-mono font-bold text-emerald-300">
+                  {currentHospitalObj.fee || currentHospitalObj.consultationFee || "₹700"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold shadow-lg hover:opacity-90 transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <Stethoscope className="w-3.5 h-3.5" />
+                  Confirm & Book
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEditInChat}
+                  className="px-2 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 text-[11px] font-medium transition-all cursor-pointer"
+                  title="Populate chat box to edit consultation details"
+                >
+                  Edit
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * Renders structured operational action badges and cards confirming real backend tool executions.
  */
@@ -473,87 +740,13 @@ function ActionCard({ action, onSelectSlot, onFillInput }) {
       );
     }
 
-    // Stage 1: Hospital List
-    if (result?.hospitals && result.hospitals.length > 0) {
+    if (success && (result?.hospitals || result?.hospital)) {
       return (
-        <div className="mt-3 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-text-primary">
-          <div className="flex items-center gap-2 mb-2 font-semibold text-emerald-300">
-            <Building2 className="w-4 h-4 text-emerald-400" />
-            <span>Premier Partner Hospitals</span>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 ml-auto">
-              Live Network
-            </span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-            {result.hospitals.map((h) => (
-              <div
-                key={h.name}
-                className="p-2.5 rounded-lg bg-bg-primary/80 border border-white/5 flex flex-col justify-between"
-              >
-                <div>
-                  <span className="font-semibold text-text-primary text-[12px] block flex items-center gap-1">
-                    <Stethoscope className="w-3.5 h-3.5 text-accent-cyan" />
-                    {h.name}
-                  </span>
-                  <span className="text-[10px] text-text-muted block mt-0.5">
-                    {h.location}
-                  </span>
-                  <span className="text-[10px] text-text-secondary block mt-1 font-mono">
-                    Specialties: {h.departments.join(", ")}
-                  </span>
-                </div>
-                <div className="mt-2 text-[10px] text-emerald-400 font-mono font-medium flex items-center justify-between">
-                  <span>{h.availableDays?.length || 6} Days/Week</span>
-                  <span>{h.fee}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
-    // Stage 2 & 3: Hospital Timings & Days
-    if (result?.hospital) {
-      return (
-        <div className="mt-3 p-3.5 rounded-xl bg-accent-cyan/10 border border-accent-cyan/30 text-xs text-text-primary">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5 font-semibold text-accent-cyan-light">
-              <Building2 className="w-4 h-4 text-accent-cyan" />
-              <span>{result.hospital}</span>
-            </div>
-            {result.fee && (
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-emerald-400">
-                {result.fee}
-              </span>
-            )}
-          </div>
-          <div className="p-2.5 rounded-lg bg-bg-primary/90 border border-border-subtle mt-2">
-            <div className="mb-2">
-              <span className="text-[11px] text-text-muted flex items-center gap-1">
-                <MapPin className="w-3 h-3 text-accent-violet-light" />
-                {result.location}
-              </span>
-              <span className="text-[10px] text-accent-cyan block mt-0.5 font-mono">
-                Departments: {result.departments?.join(", ")}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 flex-wrap mt-2">
-              <span className="text-[10px] text-text-muted mr-1 font-medium">Slots:</span>
-              {result.timings?.map((timing) => (
-                <button
-                  key={timing}
-                  type="button"
-                  onClick={() => onSelectSlot && onSelectSlot(`${timing} on ${result.requestedDay || 'Monday'} at ${result.hospital}`)}
-                  className="px-2 py-1 rounded bg-accent-cyan/15 hover:bg-accent-cyan/30 border border-accent-cyan/30 text-[10px] font-mono text-accent-cyan-light hover:text-white transition-all cursor-pointer"
-                  title="Click to select consultation slot"
-                >
-                  {timing}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        <HospitalConsultationInteractive
+          result={result}
+          onSelectSlot={onSelectSlot}
+          onFillInput={onFillInput}
+        />
       );
     }
   }
@@ -606,6 +799,12 @@ function ActionCard({ action, onSelectSlot, onFillInput }) {
                 <span className="text-text-secondary font-medium">Location: </span>
                 {result.location}
               </div>
+              {result.doctor && (
+                <div className="col-span-2">
+                  <span className="text-text-secondary font-medium">Doctor: </span>
+                  <span className="text-accent-cyan-light font-medium">{result.doctor}</span>
+                </div>
+              )}
               <div>
                 <span className="text-text-secondary font-medium">Patient: </span>
                 {result.customerName}
@@ -614,6 +813,12 @@ function ActionCard({ action, onSelectSlot, onFillInput }) {
                 <span className="text-text-secondary font-medium">Email: </span>
                 {result.customerEmail}
               </div>
+              {result.consultationFee && (
+                <div>
+                  <span className="text-text-secondary font-medium">Fee: </span>
+                  <span className="text-emerald-300 font-mono font-bold">{result.consultationFee}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>

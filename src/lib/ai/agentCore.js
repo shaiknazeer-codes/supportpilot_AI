@@ -2,7 +2,7 @@ import { getAIClient, getAIModel, getAIProvider } from "./client.js";
 import { SYSTEM_PROMPT } from "./prompts.js";
 import { SUPPORT_TOOLS, SUPPORT_TOOLS_WHITELIST } from "./tools.js";
 import { executeToolCall } from "./toolExecutors.js";
-import { MOVIE_CATALOG, HOSPITAL_CATALOG } from "./knowledgeBase.js";
+import { MOVIE_CATALOG, HOSPITAL_CATALOG, HEALTHCARE_SPECIALTIES } from "./knowledgeBase.js";
 
 /**
  * Autonomous operations fallback when AI provider quota or rate limit is reached.
@@ -316,49 +316,80 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
     userMessagesText.includes("clinic") ||
     userMessagesText.includes("consult") ||
     userMessagesText.includes("medical") ||
-    HOSPITAL_CATALOG.some((h) => userMessagesText.includes(h.name.toLowerCase()) || userMessagesText.includes(h.id)) ||
-    (lower.includes("schedule") && !isMovieIntent) ||
-    (lower.includes("appointment") && !isMovieIntent) ||
-    (lower.includes("slot") && !isMovieIntent)
+    userMessagesText.includes("health") ||
+    userMessagesText.includes("skin") ||
+    userMessagesText.includes("derma") ||
+    userMessagesText.includes("heart") ||
+    userMessagesText.includes("cardio") ||
+    userMessagesText.includes("ortho") ||
+    userMessagesText.includes("bone") ||
+    userMessagesText.includes("physician") ||
+    userMessagesText.includes("neuro") ||
+    userMessagesText.includes("pediatric") ||
+    userMessagesText.includes("gynec") ||
+    userMessagesText.includes("ent") ||
+    userMessagesText.includes("eye") ||
+    userMessagesText.includes("dental") ||
+    HOSPITAL_CATALOG.some(
+      (h) => userMessagesText.includes(h.name.toLowerCase()) || userMessagesText.includes(h.id)
+    ) ||
+    ((lower.includes("schedule") || lower.includes("appointment") || lower.includes("slot")) && !isMovieIntent)
   ) {
-    // 1. Identify if a hospital has been chosen by the customer
+    // 1. Identify if a medical field/specialty has been chosen by the customer
+    let selectedSpecialty = null;
+    for (const s of HEALTHCARE_SPECIALTIES) {
+      if (
+        userMessagesText.includes(s.id) ||
+        userMessagesText.includes(s.shortName.toLowerCase()) ||
+        s.keywords.some((k) => userMessagesText.includes(k))
+      ) {
+        selectedSpecialty = s;
+        break;
+      }
+    }
+
+    // 2. Identify if an Indore hospital has been chosen by the customer
     let selectedHospital = null;
     for (const h of HOSPITAL_CATALOG) {
       const hLower = h.name.toLowerCase();
       if (
         userMessagesText.includes(hLower) ||
         userMessagesText.includes(h.id) ||
-        (userMessagesText.includes("metro") && h.id === "metro-general") ||
-        (userMessagesText.includes("jude") && h.id === "st-jude") ||
-        (userMessagesText.includes("apex") && h.id === "apex-hospital") ||
-        (userMessagesText.includes("curewell") && h.id === "curewell-clinic")
+        (userMessagesText.includes("bombay") && h.id === "bombay-hospital") ||
+        (userMessagesText.includes("medanta") && h.id === "medanta-indore") ||
+        (userMessagesText.includes("chl") && h.id === "care-chl") ||
+        (userMessagesText.includes("apollo") && h.id === "apollo-indore") ||
+        (userMessagesText.includes("choithram") && h.id === "choithram-hospital") ||
+        (userMessagesText.includes("shalby") && h.id === "shalby-hospital") ||
+        (userMessagesText.includes("jupiter") && h.id === "vishesh-jupiter") ||
+        (userMessagesText.includes("vishesh") && h.id === "vishesh-jupiter")
       ) {
         selectedHospital = h;
         break;
       }
     }
 
-    // 2. Identify if a day or date has been chosen by the customer
+    // 3. Identify if a day or date has been chosen by the customer
     let selectedDay = null;
-    if (selectedHospital) {
-      const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-      for (const d of days) {
-        if (userMessagesText.includes(d)) {
-          selectedDay = d.charAt(0).toUpperCase() + d.slice(1);
-          break;
-        }
+    const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    for (const d of days) {
+      if (userMessagesText.includes(d)) {
+        selectedDay = d.charAt(0).toUpperCase() + d.slice(1);
+        break;
       }
-      if (!selectedDay) {
-        if (userMessagesText.includes("today")) selectedDay = "Today";
-        else if (userMessagesText.includes("tomorrow")) selectedDay = "Tomorrow";
-        else {
-          const dateMatch = userMessagesText.match(/\d{4}-\d{2}-\d{2}/);
-          if (dateMatch) selectedDay = dateMatch[0];
-        }
+    }
+    if (!selectedDay) {
+      if (userMessagesText.includes("today")) selectedDay = "Today";
+      else if (userMessagesText.includes("tomorrow")) selectedDay = "Tomorrow";
+      else if (userMessagesText.includes("wed")) selectedDay = "Wed, 11 Nov";
+      else if (userMessagesText.includes("thu")) selectedDay = "Thu, 12 Nov";
+      else {
+        const dateMatch = userMessagesText.match(/\d{4}-\d{2}-\d{2}/);
+        if (dateMatch) selectedDay = dateMatch[0];
       }
     }
 
-    // 3. Identify if a timing has been chosen by the customer
+    // 4. Identify if a timing has been chosen by the customer
     let selectedTime = null;
     if (selectedHospital && selectedDay) {
       for (const t of selectedHospital.timings) {
@@ -370,14 +401,31 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       }
       if (!selectedTime) {
         if (userMessagesText.includes("morning")) selectedTime = selectedHospital.timings[0];
-        else if (userMessagesText.includes("afternoon") || userMessagesText.includes("matinee"))
+        else if (userMessagesText.includes("afternoon"))
           selectedTime = selectedHospital.timings[2] || selectedHospital.timings[1];
         else if (userMessagesText.includes("evening"))
           selectedTime = selectedHospital.timings[selectedHospital.timings.length - 1];
       }
     }
 
-    // 4. Check for confirmation intent
+    // Determine Doctor and Department
+    const deptName = selectedSpecialty ? selectedSpecialty.name : "General Medicine / Physician";
+    let selectedDoctor = "Specialist Consultant";
+    if (selectedHospital && selectedHospital.doctors) {
+      const matchKey = Object.keys(selectedHospital.doctors).find((k) =>
+        selectedSpecialty
+          ? k.toLowerCase().includes(selectedSpecialty.shortName.toLowerCase()) ||
+            k.toLowerCase().includes(selectedSpecialty.id)
+          : true
+      );
+      if (matchKey) {
+        selectedDoctor = selectedHospital.doctors[matchKey];
+      } else {
+        selectedDoctor = Object.values(selectedHospital.doctors)[0];
+      }
+    }
+
+    // 5. Check for confirmation intent
     const isConfirmed =
       lower.includes("confirm") ||
       lower.includes("yes") ||
@@ -388,15 +436,21 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
 
     // Extract customer details
     const emailMatch = userMessagesText.match(/[\w.-]+@[\w.-]+\.\w+/);
-    const email = emailMatch ? emailMatch[0] : (context.customerEmail || "alex@example.com");
+    const email = emailMatch ? emailMatch[0] : (context.customerEmail || "patient@example.com");
     const nameMatch =
-      userMessagesText.match(/for ([A-Z][a-z]+ [A-Z][a-z]+)/i) ||
-      userMessagesText.match(/my name is ([A-Z][a-z]+ [A-Z][a-z]+|[A-Z][a-z]+)/i) ||
-      userMessagesText.match(/patient:?\s*([A-Z][a-z]+ [A-Z][a-z]+|[A-Z][a-z]+)/i);
-    const customerName = nameMatch ? (nameMatch[1] || nameMatch[0]) : (context.customerName || "Patient");
+      userMessagesText.match(/patient(?:\s+name)?(?:\s+is)?[:\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i) ||
+      userMessagesText.match(/(?:my )?name is ([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i) ||
+      userMessagesText.match(/for ([A-Z][a-z]+ [A-Z][a-z]+)/i);
+    let customerName = "Patient";
+    if (nameMatch) {
+      const raw = nameMatch[1] || nameMatch[0];
+      customerName = raw.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+    } else if (context.customerName) {
+      customerName = context.customerName;
+    }
 
-    // STEP 1: Ask Hospital if not specified
-    if (!selectedHospital) {
+    // STEP 1: Ask Medical Field & Hospital if neither is specified
+    if (!selectedHospital && !selectedSpecialty) {
       const toolResult = await executeToolCall("getHospitalsAndSlots", JSON.stringify({}), context);
       executedToolActions.push({
         toolName: "getHospitalsAndSlots",
@@ -406,16 +460,57 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       });
 
       reply =
-        `🏥 Which hospital would you like to schedule your consultation at?\n\n` +
-        `Here are our premier partner hospitals:\n` +
+        `🏥 In which medical field or doctor specialty would you like to book an appointment in Indore?\n\n` +
+        `Available Medical Fields & Specialties:\n` +
+        HEALTHCARE_SPECIALTIES.map(
+          (s, i) => `${i + 1}. ${s.name} (${s.description})`
+        ).join("\n") +
+        `\n\nPremier Indore Hospitals:\n` +
         HOSPITAL_CATALOG.map(
-          (h, i) =>
-            `${i + 1}. ${h.name}\n   • Location: ${h.location}\n   • Specialties: ${h.departments.join(", ")}\n   • Consultation Fee: ${h.consultationFee}`
-        ).join("\n\n") +
-        `\n\nPlease let me know which hospital you would like to visit!`;
+          (h) => `• ${h.name} (${h.location}) · Fee: ${h.consultationFee}`
+        ).join("\n") +
+        `\n\nPlease let me know which medical field (e.g. Skin Doctor, Heart Specialist, Bone & Joint, or General Physician) and which Indore hospital you would like to visit!`;
     }
-    // STEP 2: Ask Day if not specified
-    else if (!selectedDay) {
+    // STEP 2A: If specialty is specified but hospital is not
+    else if (selectedSpecialty && !selectedHospital) {
+      const matchingHospitals = HOSPITAL_CATALOG.filter((h) =>
+        h.departments.some(
+          (d) =>
+            d.toLowerCase().includes(selectedSpecialty.shortName.toLowerCase()) ||
+            d.toLowerCase().includes(selectedSpecialty.id)
+        )
+      );
+      const hospitalsToList = matchingHospitals.length > 0 ? matchingHospitals : HOSPITAL_CATALOG;
+
+      const toolResult = await executeToolCall(
+        "getHospitalsAndSlots",
+        JSON.stringify({ department: selectedSpecialty.name }),
+        context
+      );
+      executedToolActions.push({
+        toolName: "getHospitalsAndSlots",
+        args: { department: selectedSpecialty.name },
+        result: toolResult,
+        success: toolResult.success,
+      });
+
+      reply =
+        `Great! Here are the premier Indore hospitals with specialists in ${selectedSpecialty.name}:\n\n` +
+        hospitalsToList
+          .map((h) => {
+            const docKey = Object.keys(h.doctors).find(
+              (k) =>
+                k.toLowerCase().includes(selectedSpecialty.shortName.toLowerCase()) ||
+                k.toLowerCase().includes(selectedSpecialty.id)
+            );
+            const doc = docKey ? h.doctors[docKey] : "Senior Consultant";
+            return `🏥 ${h.name}\n   • Location: ${h.location}\n   • Specialist: ${doc}\n   • Consultation Fee: ${h.consultationFee} · Days: ${h.availableDays.join(", ")}`;
+          })
+          .join("\n\n") +
+        `\n\nWhich Indore hospital would you prefer for your ${selectedSpecialty.shortName} consultation?`;
+    }
+    // STEP 2B: If hospital is specified but specialty is not
+    else if (selectedHospital && !selectedSpecialty) {
       const toolResult = await executeToolCall(
         "getHospitalsAndSlots",
         JSON.stringify({ hospital: selectedHospital.name }),
@@ -429,49 +524,89 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       });
 
       reply =
-        `Great choice! ${selectedHospital.name} offers specialist consultations on ${selectedHospital.availableDays.join(", ")}.\n\n` +
-        `Which day or date works best for you (e.g. Monday, Tomorrow, or a specific date)?`;
+        `Excellent choice! ${selectedHospital.name} (${selectedHospital.location}) offers top medical specialists across these fields:\n\n` +
+        selectedHospital.departments
+          .map((dept) => {
+            const doc = selectedHospital.doctors[dept] || "Senior Consultant";
+            return `• ${dept} (Specialist: ${doc})`;
+          })
+          .join("\n") +
+        `\n\nConsultation Fee: ${selectedHospital.consultationFee}\nAvailable Days: ${selectedHospital.availableDays.join(", ")}\n\nWhich medical field or doctor specialty do you need an appointment in?`;
     }
-    // STEP 3: Show & Ask Timings if not specified
+    // STEP 3: Both hospital and specialty known, ask day/date
+    else if (!selectedDay) {
+      const toolResult = await executeToolCall(
+        "getHospitalsAndSlots",
+        JSON.stringify({
+          hospital: selectedHospital.name,
+          department: selectedSpecialty.name,
+        }),
+        context
+      );
+      executedToolActions.push({
+        toolName: "getHospitalsAndSlots",
+        args: { hospital: selectedHospital.name, department: selectedSpecialty.name },
+        result: toolResult,
+        success: toolResult.success,
+      });
+
+      reply =
+        `Great! ${selectedDoctor} is available for consultations at ${selectedHospital.name} on ${selectedHospital.availableDays.join(", ")}.\n\n` +
+        `📅 Available Dates: Today, Tomorrow, Wed 11 Nov, Thu 12 Nov\n` +
+        `• Location: ${selectedHospital.location}\n` +
+        `• Consultation Fee: ${selectedHospital.consultationFee}\n\n` +
+        `Which day or date works best for your appointment?`;
+    }
+    // STEP 4: Day known, ask timing slot
     else if (!selectedTime) {
       const toolResult = await executeToolCall(
         "getHospitalsAndSlots",
         JSON.stringify({
           hospital: selectedHospital.name,
+          department: selectedSpecialty.name,
           dayOrDate: selectedDay,
         }),
         context
       );
       executedToolActions.push({
         toolName: "getHospitalsAndSlots",
-        args: { hospital: selectedHospital.name, dayOrDate: selectedDay },
+        args: {
+          hospital: selectedHospital.name,
+          department: selectedSpecialty.name,
+          dayOrDate: selectedDay,
+        },
         result: toolResult,
         success: toolResult.success,
       });
 
       reply =
-        `Here are the available consultation timings for ${selectedHospital.name} on ${selectedDay}:\n\n` +
-        selectedHospital.timings.map((t) => `🕒 ${t} (Specialist Slot)`).join("\n") +
+        `Here are the available consultation timings for ${selectedDoctor} (${selectedSpecialty.name}) at ${selectedHospital.name} on ${selectedDay}:\n\n` +
+        `• Location: ${selectedHospital.location}\n` +
+        `• Consultation Fee: ${selectedHospital.consultationFee}\n\n` +
+        selectedHospital.timings.map((t) => `🕒 ${t} (OPD Specialist Slot)`).join("\n") +
         `\n\nWhich timing slot works best for you?`;
     }
-    // STEP 4: Summary & Ask Confirmation
+    // STEP 5: Summary & Confirmation
     else if (!isConfirmed) {
       reply =
-        `📋 Consultation Appointment Summary:\n` +
+        `📋 Doctor Consultation Appointment Summary:\n` +
         `• Hospital: ${selectedHospital.name} (${selectedHospital.location})\n` +
-        `• Department: General Medicine / Outpatient\n` +
-        `• Day & Time: ${selectedDay} at ${selectedTime}\n` +
+        `• Medical Field: ${deptName}\n` +
+        `• Specialist: ${selectedDoctor}\n` +
+        `• Date & Time: ${selectedDay} at ${selectedTime}\n` +
         `• Consultation Fee: ${selectedHospital.consultationFee}\n\n` +
-        `To confirm and secure your consultation appointment in our database, please reply 'Confirm' (or provide your name and email).`;
+        `To confirm and secure your doctor consultation appointment in our database, please reply 'Confirm' (or provide your name and email).`;
     }
-    // STEP 5: At Last Confirmed! Save to MongoDB
+    // STEP 6: Execute booking in MongoDB
     else {
       const toolResult = await executeToolCall(
         "bookHospitalConsultation",
         JSON.stringify({
           hospital: selectedHospital.name,
           location: selectedHospital.location,
-          department: "General Medicine",
+          department: deptName,
+          doctor: selectedDoctor,
+          consultationFee: selectedHospital.consultationFee,
           day: selectedDay,
           time: selectedTime,
           customerName,
@@ -486,6 +621,8 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
         toolName: "bookHospitalConsultation",
         args: {
           hospital: selectedHospital.name,
+          department: deptName,
+          doctor: selectedDoctor,
           day: selectedDay,
           time: selectedTime,
           customerName,
@@ -497,13 +634,15 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
 
       if (toolResult.success) {
         reply =
-          `✅ Your Consultation Appointment is Confirmed!\n\n` +
+          `✅ Your Doctor Consultation is Confirmed!\n\n` +
           `🎉 Booking ID: ${toolResult.bookingId}\n` +
           `🏥 Hospital: ${selectedHospital.name}\n` +
           `📍 Location: ${selectedHospital.location}\n` +
+          `🩺 Specialist: ${selectedDoctor} (${deptName})\n` +
           `📅 Appointment: ${selectedDay} at ${selectedTime}\n` +
+          `💰 Consultation Fee: ${selectedHospital.consultationFee}\n` +
           `👤 Patient: ${customerName}\n` +
-          `📧 A confirmation notice and appointment pass have been sent to ${email}.\n\nTake care! 🩺`;
+          `📧 A digital consultation pass and appointment details have been sent to ${email}.\n\nTake care! 🩺`;
       } else {
         reply =
           toolResult.message ||

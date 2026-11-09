@@ -8,7 +8,7 @@ import {
   isValidEmail,
   isValidDate,
 } from "../db/validators.js";
-import { MOVIE_CATALOG, HOSPITAL_CATALOG } from "./knowledgeBase.js";
+import { MOVIE_CATALOG, HOSPITAL_CATALOG, HEALTHCARE_SPECIALTIES } from "./knowledgeBase.js";
 
 /**
  * Standard business hour slot templates for weekday scheduling (UTC).
@@ -770,60 +770,124 @@ export async function executeBookMovieTicket(args) {
  * Returns partner hospitals, locations, departments, operating days, and available consultation time slots.
  */
 export async function executeGetHospitalsAndSlots(args = {}) {
-  const { hospital, dayOrDate } = args;
+  const { hospital, department, dayOrDate } = args;
 
-  // If no hospital is specified, return all partner hospitals
+  // Match medical field or specialty if specified
+  let matchedSpecialty = null;
+  if (department && typeof department === "string" && department.trim()) {
+    const deptLower = department.trim().toLowerCase();
+    matchedSpecialty = HEALTHCARE_SPECIALTIES.find(
+      (s) =>
+        s.name.toLowerCase().includes(deptLower) ||
+        s.shortName.toLowerCase().includes(deptLower) ||
+        s.keywords.some((k) => deptLower.includes(k) || k.includes(deptLower))
+    );
+  }
+
+  // If no hospital is specified:
   if (!hospital || !hospital.trim()) {
-    const list = HOSPITAL_CATALOG.map((h) => ({
+    let filteredHospitals = HOSPITAL_CATALOG;
+    if (matchedSpecialty) {
+      filteredHospitals = HOSPITAL_CATALOG.filter((h) =>
+        h.departments.some(
+          (d) =>
+            d.toLowerCase().includes(matchedSpecialty.shortName.toLowerCase()) ||
+            d.toLowerCase().includes(matchedSpecialty.id)
+        )
+      );
+      if (filteredHospitals.length === 0) filteredHospitals = HOSPITAL_CATALOG;
+    }
+
+    const list = filteredHospitals.map((h) => ({
       name: h.name,
       location: h.location,
+      city: h.city || "Indore",
       departments: h.departments,
+      doctors: h.doctors,
       availableDays: h.availableDays,
+      timings: h.timings,
       fee: h.consultationFee,
     }));
+
     return {
       success: true,
-      stage: "select_hospital",
+      stage: matchedSpecialty ? "select_hospital_for_specialty" : "select_specialty_and_hospital",
       count: list.length,
+      selectedSpecialty: matchedSpecialty ? matchedSpecialty.name : null,
+      specialties: HEALTHCARE_SPECIALTIES.map((s) => ({
+        id: s.id,
+        name: s.name,
+        shortName: s.shortName,
+        description: s.description,
+      })),
       hospitals: list,
-      message:
-        "Here are our premier partner hospitals. Please select which hospital you would like to visit for your consultation.",
+      message: matchedSpecialty
+        ? `Found ${list.length} premier Indore hospital(s) with specialists in ${matchedSpecialty.name}. Please select your preferred hospital.`
+        : "Here are premier hospitals in Indore and medical specialties. Please select a specialty and hospital.",
     };
   }
 
+  // If hospital is specified:
   const queryHosp = hospital.trim().toLowerCase();
-  const matched = HOSPITAL_CATALOG.find(
-    (h) =>
-      h.name.toLowerCase().includes(queryHosp) ||
+  const matched = HOSPITAL_CATALOG.find((h) => {
+    const hLower = h.name.toLowerCase();
+    return (
+      hLower.includes(queryHosp) ||
       queryHosp.includes(h.id) ||
-      (queryHosp.includes("metro") && h.id === "metro-general") ||
-      (queryHosp.includes("jude") && h.id === "st-jude") ||
-      (queryHosp.includes("apex") && h.id === "apex-hospital") ||
-      (queryHosp.includes("curewell") && h.id === "curewell-clinic")
-  );
+      (queryHosp.includes("bombay") && h.id === "bombay-hospital") ||
+      (queryHosp.includes("medanta") && h.id === "medanta-indore") ||
+      (queryHosp.includes("chl") && h.id === "care-chl") ||
+      (queryHosp.includes("apollo") && h.id === "apollo-indore") ||
+      (queryHosp.includes("choithram") && h.id === "choithram-hospital") ||
+      (queryHosp.includes("shalby") && h.id === "shalby-hospital") ||
+      (queryHosp.includes("jupiter") && h.id === "vishesh-jupiter") ||
+      (queryHosp.includes("vishesh") && h.id === "vishesh-jupiter")
+    );
+  });
 
   if (!matched) {
     return {
       success: false,
       error: "HOSPITAL_NOT_FOUND",
-      message: `We could not find '${hospital}'. Available hospitals: ${HOSPITAL_CATALOG.map((h) => h.name).join(", ")}.`,
+      message: `We could not find '${hospital}' in Indore. Available hospitals: ${HOSPITAL_CATALOG.map((h) => h.name).join(", ")}.`,
       availableHospitals: HOSPITAL_CATALOG.map((h) => h.name),
     };
   }
+
+  // Determine department key and assigned doctor
+  let deptKey = matched.departments[0];
+  if (matchedSpecialty) {
+    const found = matched.departments.find(
+      (d) =>
+        d.toLowerCase().includes(matchedSpecialty.shortName.toLowerCase()) ||
+        d.toLowerCase().includes(matchedSpecialty.id)
+    );
+    if (found) deptKey = found;
+  }
+  const assignedDoctor = matched.doctors[deptKey] || Object.values(matched.doctors)[0] || "Senior Consultant";
 
   return {
     success: true,
     stage: dayOrDate ? "select_timing" : "select_day",
     hospital: matched.name,
     location: matched.location,
+    city: matched.city || "Indore",
     departments: matched.departments,
+    selectedDepartment: deptKey,
+    assignedDoctor,
     availableDays: matched.availableDays,
     timings: matched.timings,
     fee: matched.consultationFee,
     requestedDay: dayOrDate || null,
+    specialties: HEALTHCARE_SPECIALTIES.map((s) => ({
+      id: s.id,
+      name: s.name,
+      shortName: s.shortName,
+      description: s.description,
+    })),
     message: dayOrDate
-      ? `Available consultation timings for ${matched.name} on ${dayOrDate}: ${matched.timings.join(", ")}.`
-      : `${matched.name} consultations are available on ${matched.availableDays.join(", ")}. Please select your preferred day.`,
+      ? `Available consultation timings for ${assignedDoctor} at ${matched.name} on ${dayOrDate}: ${matched.timings.join(", ")} (Fee: ${matched.consultationFee}).`
+      : `${matched.name} specialist consultations are available on ${matched.availableDays.join(", ")}. Please select your preferred day or date.`,
   };
 }
 
@@ -844,6 +908,8 @@ export async function executeBookHospitalConsultation(args) {
     hospital,
     location,
     department = "General Medicine",
+    doctor,
+    consultationFee,
     day,
     time,
     customerName,
@@ -868,14 +934,16 @@ export async function executeBookHospitalConsultation(args) {
       requiresConfirmation: true,
       pendingDetails: {
         hospital,
-        location: location || "Main Healthcare Campus",
+        location: location || "Main Healthcare Campus, Indore",
         department,
+        doctor: doctor || "Specialist Consultant",
+        consultationFee: consultationFee || "₹700",
         day,
         time,
         customerName: customerName || "Patient",
         customerEmail: customerEmail || "",
       },
-      message: `Consultation at ${hospital} (${department}) on ${day} at ${time} is pending your confirmation. Reply 'Confirm' to finalize your appointment!`,
+      message: `Consultation at ${hospital} (${department}) with ${doctor || "Specialist"} on ${day} at ${time} is pending your confirmation. Reply 'Confirm' to finalize your appointment!`,
     };
   }
 
@@ -908,12 +976,14 @@ export async function executeBookHospitalConsultation(args) {
     customerEmail: customerEmail.trim().toLowerCase(),
     customerPhone: customerPhone ? customerPhone.trim() : null,
     hospital: hospital.trim(),
-    location: location ? location.trim() : "Main Medical Center",
+    location: location ? location.trim() : "Main Medical Center, Indore",
     department: department ? department.trim() : "General Medicine",
+    doctor: doctor ? doctor.trim() : "Specialist Consultant",
+    consultationFee: consultationFee ? consultationFee.trim() : "₹700",
     day: day.trim(),
     time: time.trim(),
     topic,
-    notes: notes || "Specialist hospital consultation",
+    notes: notes || "Specialist hospital consultation in Indore",
     scheduledAt: scheduledDate,
     durationMinutes: 45,
     bookingType: "hospital_consultation",
@@ -930,6 +1000,8 @@ export async function executeBookHospitalConsultation(args) {
       hospital: consultationDoc.hospital,
       location: consultationDoc.location,
       department: consultationDoc.department,
+      doctor: consultationDoc.doctor,
+      consultationFee: consultationDoc.consultationFee,
       day: consultationDoc.day,
       time: consultationDoc.time,
       customerName: consultationDoc.customerName,
@@ -961,6 +1033,8 @@ export async function executeBookHospitalConsultation(args) {
       hospital: consultationDoc.hospital,
       location: consultationDoc.location,
       department: consultationDoc.department,
+      doctor: consultationDoc.doctor,
+      consultationFee: consultationDoc.consultationFee,
       day: consultationDoc.day,
       time: consultationDoc.time,
       customerName: consultationDoc.customerName,
