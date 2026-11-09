@@ -113,8 +113,8 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
   if (isDualBookingIntent) {
     reply =
       "I can help you with both!\n\n" +
-      "1. 🎬 Movie Ticket Booking: View currently running blockbusters across Indore multiplexes, select seats, and book tickets.\n" +
-      "2. 🏥 Doctor Appointments: Schedule a consultation with medical specialists at premier Indore hospitals.\n\n" +
+      "1. Movie Ticket Booking: View currently running blockbusters across Indore multiplexes, select seats, and book tickets.\n" +
+      "2. Doctor Appointments: Schedule a consultation with medical specialists at premier Indore hospitals.\n\n" +
       "Which one would you like to book right now — Movie Tickets or Doctor Appointment?";
   } else if (isMovieIntent && !lower.includes("bug") && !lower.includes("error") && !lower.includes("504")) {
     // 1. Identify if a movie has been chosen by the customer
@@ -239,7 +239,7 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       });
 
       reply =
-        "🎬 Which movie would you like to watch in Indore?\n\n" +
+        "Which movie would you like to watch in Indore?\n\n" +
         "Please select a movie below to view available showtimes, multiplex venues, and seat availability:";
     }
     // STEP 2: Once movie is chosen, show cinema locations where it is available
@@ -278,14 +278,14 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
 
       reply =
         `Here are the available show timings for ${selectedMovie.title} at ${selectedTheater.name} (${selectedTheater.location}):\n\n` +
-        `📅 Available Dates: Today, Tomorrow, Wed 11 Nov\n` +
-        `💺 Available Seats: 🟢 ${selectedTheater.availableSeats || 40} seats currently open (${selectedTheater.price} per ticket)\n` +
+        `• Available Dates: Today, Tomorrow, Wed 11 Nov\n` +
+        `• Available Seats: ${selectedTheater.availableSeats || 40} seats currently open (${selectedTheater.price} per ticket)\n` +
         `• Row F (VIP Recliner): F2, F3, F4, F5, F6, F7, F8\n` +
         `• Row E (Prime Club): E1, E2, E3, E4, E5, E6, E7, E8\n` +
         `• Row D (Gold Executive): D3, D4, D5, D6, D7, D8\n` +
         `• Row C (Gold Executive): C1, C2, C3, C4, C5, C6, C8\n\n` +
         selectedTheater.timings
-          .map((tm) => `🕒 ${tm} (${selectedTheater.formats.join(", ")})`)
+          .map((tm) => `• ${tm} (${selectedTheater.formats.join(", ")})`)
           .join("\n") +
         `\n\nPlease select your preferred showtime and choose your seats using the interactive seat map below, or reply with your seats (e.g. E4 and E5)!`;
     }
@@ -300,7 +300,7 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       const totalPrice = unitPrice * seatsCount;
 
       reply =
-        `🎟️ Movie Ticket Reservation Summary:\n` +
+        `Movie Ticket Reservation Summary:\n` +
         `• Movie: ${selectedMovie.title}\n` +
         `• Cinema: ${selectedTheater.name} (${selectedTheater.location})\n` +
         `• Date & Showtime: ${selectedDate} at ${selectedTiming}\n` +
@@ -353,15 +353,16 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
 
       if (toolResult.success) {
         reply =
-          `✅ Your Movie Tickets are Confirmed!\n\n` +
-          `🎉 Booking ID: ${toolResult.bookingId}\n` +
-          `🎬 Movie: ${selectedMovie.title}\n` +
-          `📍 Cinema: ${selectedTheater.name} (${selectedTheater.location})\n` +
-          `📅 Date & Showtime: ${selectedDate} at ${selectedTiming}\n` +
-          `🎟️ Quantity: ${seatsCount} Ticket${seatsCount > 1 ? "s" : ""}\n` +
-          `💺 Confirmed Seats: ${assignedSeats}\n` +
-          `💰 Total Paid: ₹${totalPrice}\n` +
-          `📧 A digital ticket pass has been queued for ${email}.\n\nEnjoy your movie! 🍿`;
+          `Your movie tickets are confirmed!\n\n` +
+          `• Booking ID: ${toolResult.bookingId}\n` +
+          `• Movie: ${selectedMovie.title}\n` +
+          `• Cinema: ${selectedTheater.name} (${selectedTheater.location})\n` +
+          `• Date & Showtime: ${selectedDate} at ${selectedTiming}\n` +
+          `• Quantity: ${seatsCount} Ticket${seatsCount > 1 ? "s" : ""}\n` +
+          `• Confirmed Seats: ${assignedSeats}\n` +
+          `• Total Paid: ₹${totalPrice}\n` +
+          `• Digital ticket sent to: ${email}\n\n` +
+          `Enjoy your movie!`;
       } else {
         reply =
           toolResult.message ||
@@ -504,7 +505,7 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       });
 
       reply =
-        "🏥 In which medical field or doctor specialty would you like to book an appointment in Indore?\n\n" +
+        "In which medical field or doctor specialty would you like to book an appointment in Indore?\n\n" +
         "Please select your preferred medical field and Indore hospital below to check doctor availability and schedule your consultation:";
     }
     // STEP 2A: If specialty is specified but hospital is not
@@ -569,7 +570,7 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
 
       reply =
         `Great! ${selectedDoctor} is available for consultations at ${selectedHospital.name} on ${selectedHospital.availableDays.join(", ")}.\n\n` +
-        `📅 Available Dates: Today, Tomorrow, Wed 11 Nov, Thu 12 Nov\n` +
+        `• Available Dates: Today, Tomorrow, Wed 11 Nov, Thu 12 Nov\n` +
         `• Location: ${selectedHospital.location}\n` +
         `• Consultation Fee: ${selectedHospital.consultationFee}\n\n` +
         `Which day or date works best for your appointment?`;
@@ -600,13 +601,13 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
         `Here are the available consultation timings for ${selectedDoctor} (${selectedSpecialty.name}) at ${selectedHospital.name} on ${selectedDay}:\n\n` +
         `• Location: ${selectedHospital.location}\n` +
         `• Consultation Fee: ${selectedHospital.consultationFee}\n\n` +
-        selectedHospital.timings.map((t) => `🕒 ${t} (OPD Specialist Slot)`).join("\n") +
+        selectedHospital.timings.map((t) => `• ${t} (OPD Specialist Slot)`).join("\n") +
         `\n\nWhich timing slot works best for you?`;
     }
     // STEP 5: Summary & Confirmation
     else if (!isConfirmed) {
       reply =
-        `📋 Doctor Consultation Appointment Summary:\n` +
+        `Doctor Consultation Appointment Summary:\n` +
         `• Hospital: ${selectedHospital.name} (${selectedHospital.location})\n` +
         `• Medical Field: ${deptName}\n` +
         `• Specialist: ${selectedDoctor}\n` +
@@ -651,15 +652,16 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
 
       if (toolResult.success) {
         reply =
-          `✅ Your Doctor Consultation is Confirmed!\n\n` +
-          `🎉 Booking ID: ${toolResult.bookingId}\n` +
-          `🏥 Hospital: ${selectedHospital.name}\n` +
-          `📍 Location: ${selectedHospital.location}\n` +
-          `🩺 Specialist: ${selectedDoctor} (${deptName})\n` +
-          `📅 Appointment: ${selectedDay} at ${selectedTime}\n` +
-          `💰 Consultation Fee: ${selectedHospital.consultationFee}\n` +
-          `👤 Patient: ${customerName}\n` +
-          `📧 A digital consultation pass and appointment details have been sent to ${email}.\n\nTake care! 🩺`;
+          `Your doctor consultation is confirmed!\n\n` +
+          `• Booking ID: ${toolResult.bookingId}\n` +
+          `• Hospital: ${selectedHospital.name}\n` +
+          `• Location: ${selectedHospital.location}\n` +
+          `• Specialist: ${selectedDoctor} (${deptName})\n` +
+          `• Appointment: ${selectedDay} at ${selectedTime}\n` +
+          `• Consultation Fee: ${selectedHospital.consultationFee}\n` +
+          `• Patient: ${customerName}\n` +
+          `• Confirmation sent to: ${email}.\n\n` +
+          `Please arrive 15 minutes before your scheduled slot.`;
       } else {
         reply =
           toolResult.message ||
@@ -685,9 +687,9 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
     });
 
     if (toolResult.success && toolResult.ticketId) {
-      reply = `🚨 Your request has been escalated directly to our human support team under ticket ID ${toolResult.ticketId}. A senior specialist will review your full conversation context within 2 business hours.`;
+      reply = `Your request has been escalated directly to our human support team under ticket ID ${toolResult.ticketId}. A senior specialist will review your full conversation context within 2 business hours.`;
     } else {
-      reply = `🚨 Your escalation request has been registered. Our human support team has been notified. (${toolResult.message || "Escalation queued for triage"})`;
+      reply = `Your escalation request has been registered. Our human support team has been notified. (${toolResult.message || "Escalation queued for triage"})`;
     }
   } else if (
     (lower.includes("support ticket") || lower.includes("create ticket") || lower.includes("log ticket") ||

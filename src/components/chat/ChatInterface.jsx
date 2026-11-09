@@ -791,7 +791,7 @@ function ActionCard({ action, onSelectSlot, onFillInput }) {
           <div className="flex items-center justify-between mb-2 pb-2 border-b border-emerald-500/20">
             <div className="flex items-center gap-2 font-bold text-emerald-300">
               <Building2 className="w-4 h-4 text-emerald-400" />
-              <span>Hospital Consultation Confirmed in MongoDB</span>
+              <span>Appointment Confirmed · Consultation Reserved</span>
             </div>
             <span className="font-mono text-[11px] px-2.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-600 font-bold">
               {result.bookingId}
@@ -926,7 +926,7 @@ function ActionCard({ action, onSelectSlot, onFillInput }) {
           <div className="flex items-center justify-between mb-2 pb-2 border-b border-emerald-500/20">
             <div className="flex items-center gap-2 font-bold text-emerald-300">
               <Ticket className="w-4 h-4 text-emerald-400" />
-              <span>Movie Ticket Confirmed in MongoDB</span>
+              <span>Ticket Confirmed · Enjoy Your Movie!</span>
             </div>
             <span className="font-mono text-[11px] px-2.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-600 font-bold">
               {result.bookingId}
@@ -936,7 +936,7 @@ function ActionCard({ action, onSelectSlot, onFillInput }) {
           <div className="space-y-1.5 mt-2">
             <div className="flex items-baseline justify-between">
               <span className="text-sm font-bold text-text-primary tracking-tight">
-                🎬 {result.movie}
+                {result.movie}
               </span>
               <span className="text-[11px] font-mono text-emerald-400 font-semibold">
                 {result.seatsCount ? `${result.seatsCount} Seats` : "Confirmed"}
@@ -980,7 +980,7 @@ function ActionCard({ action, onSelectSlot, onFillInput }) {
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-1.5 font-bold text-accent-violet-light">
               <TicketCheck className="w-4 h-4" />
-              <span>Support Ticket Created in MongoDB</span>
+              <span>Support Ticket Created</span>
             </div>
             <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-accent-violet/20 text-accent-violet-light border border-accent-violet/40 font-semibold">
               {result.ticketId}
