@@ -89,7 +89,7 @@ export default function ChatPreview() {
   const [isTyping, setIsTyping] = useState(false);
   const [hasPlayed, setHasPlayed] = useState(false);
   const containerRef = useRef(null);
-  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
 
   // ScrollTrigger to start animation and fade-up when section enters viewport
   useEffect(() => {
@@ -150,9 +150,14 @@ export default function ChatPreview() {
     return () => timeouts.forEach(clearTimeout);
   }, [hasPlayed]);
 
-  // Auto-scroll to latest message
+  // Auto-scroll ONLY within the inner chat box widget, NEVER the window page
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
   }, [visibleMessages, isTyping]);
 
   return (
@@ -178,14 +183,16 @@ export default function ChatPreview() {
             </div>
 
             {/* Messages */}
-            <div className="h-80 overflow-y-auto px-4 py-4 space-y-4 scrollbar-thin">
+            <div
+              ref={messagesContainerRef}
+              className="h-80 overflow-y-auto px-4 py-4 space-y-4 scrollbar-thin"
+            >
               <AnimatePresence>
                 {visibleMessages.map((msg) => (
                   <ChatBubble key={msg.id} message={msg} />
                 ))}
               </AnimatePresence>
               {isTyping && <TypingIndicator />}
-              <div ref={messagesEndRef} />
             </div>
 
             {/* Input bar */}
