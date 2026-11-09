@@ -162,6 +162,7 @@ function MovieShowtimesInteractive({ result, onSelectSlot, onFillInput }) {
   const [selectedTheater, setSelectedTheater] = useState(null);
   const [selectedTiming, setSelectedTiming] = useState(null);
   const [selectedSeats, setSelectedSeats] = useState(["E4", "E5"]);
+  const seatMapPanelRef = useRef(null);
 
   const dates = [
     { id: "Today", label: "Today (Mon, 9 Nov)" },
@@ -172,6 +173,9 @@ function MovieShowtimesInteractive({ result, onSelectSlot, onFillInput }) {
   const handleTimingClick = (theaterName, timing) => {
     setSelectedTheater(theaterName);
     setSelectedTiming(timing);
+    setTimeout(() => {
+      seatMapPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 80);
   };
 
   const handleSeatClick = (seatId, isBooked) => {
@@ -285,7 +289,7 @@ function MovieShowtimesInteractive({ result, onSelectSlot, onFillInput }) {
                     key={timing}
                     type="button"
                     onClick={() => handleTimingClick(t.name, timing)}
-                    className={`px-2.5 py-1 rounded text-[11px] font-mono transition-all cursor-pointer flex items-center gap-1 ${
+                    className={`px-2.5 py-1 rounded text-[11px] font-mono transition-all cursor-pointer flex items-center gap-1 active:scale-[0.98] ${
                       isSelected
                         ? "bg-accent-cyan text-bg-primary font-bold shadow-[0_0_10px_#06b6d4]"
                         : "bg-accent-cyan/15 hover:bg-accent-cyan/30 text-accent-cyan-light hover:text-white border border-accent-cyan/30"
@@ -306,7 +310,7 @@ function MovieShowtimesInteractive({ result, onSelectSlot, onFillInput }) {
 
       {/* 💺 Interactive Seat Selection Grid */}
       {selectedTiming && selectedTheater && (
-        <div className="mt-3.5 p-3.5 rounded-xl bg-bg-primary/95 border border-accent-cyan/40">
+        <div ref={seatMapPanelRef} className="mt-3.5 p-3.5 rounded-xl bg-bg-primary/95 border border-accent-cyan/40">
           <div className="flex items-center justify-between mb-2">
             <div>
               <span className="text-[10px] uppercase font-bold text-accent-cyan-light block">
@@ -513,12 +517,17 @@ function HospitalConsultationInteractive({ result, onSelectSlot, onFillInput }) 
     }
   }
 
+  const confirmPanelRef = useRef(null);
+
   const handleTimingClick = (hospName, timing) => {
     setSelectedHospital(hospName);
     setSelectedTiming(timing);
     if (!selectedSpecialty) {
       setSelectedSpecialty("General Medicine / Physician");
     }
+    setTimeout(() => {
+      confirmPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 80);
   };
 
   const handleSpecialtyClick = (specName) => {
@@ -664,7 +673,7 @@ function HospitalConsultationInteractive({ result, onSelectSlot, onFillInput }) 
                       key={timing}
                       type="button"
                       onClick={() => handleTimingClick(h.name, timing)}
-                      className={`px-2 py-1 rounded text-[10px] font-mono transition-all cursor-pointer flex items-center gap-1 ${
+                      className={`px-2 py-1 rounded text-[10px] font-mono transition-all cursor-pointer flex items-center gap-1 active:scale-[0.98] ${
                         isTimingSelected
                           ? "bg-emerald-500 text-bg-primary font-bold shadow-[0_0_8px_#10b981]"
                           : "bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 hover:text-white border border-emerald-500/30"
@@ -683,7 +692,7 @@ function HospitalConsultationInteractive({ result, onSelectSlot, onFillInput }) 
 
       {/* 📋 Confirmation & Action Panel */}
       {selectedTiming && selectedHospital && (
-        <div className="mt-3.5 p-3.5 rounded-xl bg-gradient-to-r from-emerald-500/20 via-teal-500/15 to-accent-cyan/20 border border-emerald-500/40">
+        <div ref={confirmPanelRef} className="mt-3.5 p-3.5 rounded-xl bg-gradient-to-r from-emerald-500/20 via-teal-500/15 to-accent-cyan/20 border border-emerald-500/40">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <span className="text-[10px] uppercase font-bold text-emerald-300 block">
@@ -1155,7 +1164,7 @@ export default function ChatInterface() {
   };
 
   const handleSelectSlot = (promptOrIso, date) => {
-    if (typeof promptOrIso === "string" && (promptOrIso.includes("book") || promptOrIso.includes("showtimes") || promptOrIso.includes("ticket"))) {
+    if (typeof promptOrIso === "string" && (promptOrIso.includes("book") || promptOrIso.includes("showtimes") || promptOrIso.includes("ticket") || promptOrIso.includes("consultation") || promptOrIso.includes("appointment") || !date)) {
       handleSendMessage(promptOrIso, { autoScroll: true });
       return;
     }
