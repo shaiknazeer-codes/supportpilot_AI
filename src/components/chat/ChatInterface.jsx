@@ -70,11 +70,98 @@ const SUGGESTED_PROMPTS = [
   },
 ];
 
+const CINEMA_SEAT_ROWS = [
+  {
+    row: "F",
+    tier: "VIP Recliner",
+    seats: [
+      { id: "F1", status: "booked" },
+      { id: "F2", status: "available" },
+      { id: "F3", status: "available" },
+      { id: "F4", status: "available" },
+      { id: "F5", status: "available" },
+      { id: "F6", status: "available" },
+      { id: "F7", status: "available" },
+      { id: "F8", status: "available" },
+    ],
+  },
+  {
+    row: "E",
+    tier: "Prime Club",
+    seats: [
+      { id: "E1", status: "available" },
+      { id: "E2", status: "available" },
+      { id: "E3", status: "available" },
+      { id: "E4", status: "available" },
+      { id: "E5", status: "available" },
+      { id: "E6", status: "available" },
+      { id: "E7", status: "available" },
+      { id: "E8", status: "available" },
+    ],
+  },
+  {
+    row: "D",
+    tier: "Gold Executive",
+    seats: [
+      { id: "D1", status: "booked" },
+      { id: "D2", status: "booked" },
+      { id: "D3", status: "available" },
+      { id: "D4", status: "available" },
+      { id: "D5", status: "available" },
+      { id: "D6", status: "available" },
+      { id: "D7", status: "available" },
+      { id: "D8", status: "available" },
+    ],
+  },
+  {
+    row: "C",
+    tier: "Gold Executive",
+    seats: [
+      { id: "C1", status: "available" },
+      { id: "C2", status: "available" },
+      { id: "C3", status: "available" },
+      { id: "C4", status: "available" },
+      { id: "C5", status: "available" },
+      { id: "C6", status: "available" },
+      { id: "C7", status: "booked" },
+      { id: "C8", status: "available" },
+    ],
+  },
+  {
+    row: "B",
+    tier: "Silver Standard",
+    seats: [
+      { id: "B1", status: "available" },
+      { id: "B2", status: "available" },
+      { id: "B3", status: "available" },
+      { id: "B4", status: "booked" },
+      { id: "B5", status: "booked" },
+      { id: "B6", status: "available" },
+      { id: "B7", status: "available" },
+      { id: "B8", status: "available" },
+    ],
+  },
+  {
+    row: "A",
+    tier: "Silver Standard",
+    seats: [
+      { id: "A1", status: "booked" },
+      { id: "A2", status: "booked" },
+      { id: "A3", status: "available" },
+      { id: "A4", status: "available" },
+      { id: "A5", status: "available" },
+      { id: "A6", status: "available" },
+      { id: "A7", status: "available" },
+      { id: "A8", status: "available" },
+    ],
+  },
+];
+
 function MovieShowtimesInteractive({ result, onSelectSlot, onFillInput }) {
   const [selectedDate, setSelectedDate] = useState("Today");
   const [selectedTheater, setSelectedTheater] = useState(null);
   const [selectedTiming, setSelectedTiming] = useState(null);
-  const [ticketsCount, setTicketsCount] = useState(2);
+  const [selectedSeats, setSelectedSeats] = useState(["E4", "E5"]);
 
   const dates = [
     { id: "Today", label: "Today (Mon, 9 Nov)" },
@@ -87,19 +174,33 @@ function MovieShowtimesInteractive({ result, onSelectSlot, onFillInput }) {
     setSelectedTiming(timing);
   };
 
+  const handleSeatClick = (seatId, isBooked) => {
+    if (isBooked) return;
+    setSelectedSeats((prev) => {
+      if (prev.includes(seatId)) {
+        return prev.filter((id) => id !== seatId);
+      } else {
+        return [...prev, seatId].sort();
+      }
+    });
+  };
+
   const selectedTheaterObj = result.theaters?.find((t) => t.name === selectedTheater);
   const unitPrice = parseInt((selectedTheaterObj?.price || "₹250").replace(/[^\d]/g, ""), 10) || 250;
-  const totalPrice = unitPrice * ticketsCount;
+  const count = selectedSeats.length > 0 ? selectedSeats.length : 1;
+  const totalPrice = unitPrice * count;
 
   const handleConfirm = () => {
     if (!selectedTheater || !selectedTiming) return;
-    const prompt = `Please book ${ticketsCount} tickets for ${result.movie} at ${selectedTheater} on ${selectedDate} at ${selectedTiming}. Confirm booking.`;
+    const seatsStr = selectedSeats.length > 0 ? selectedSeats.join(", ") : "E4, E5";
+    const prompt = `Please book seats ${seatsStr} (${count} tickets) for ${result.movie} at ${selectedTheater} on ${selectedDate} at ${selectedTiming}. Confirm booking.`;
     if (onSelectSlot) onSelectSlot(prompt);
   };
 
   const handleEditInChat = () => {
     if (!selectedTheater || !selectedTiming) return;
-    const prompt = `Book ${ticketsCount} tickets for ${result.movie} at ${selectedTheater} on ${selectedDate} at ${selectedTiming}`;
+    const seatsStr = selectedSeats.length > 0 ? selectedSeats.join(", ") : "E4, E5";
+    const prompt = `Book seats ${seatsStr} for ${result.movie} at ${selectedTheater} on ${selectedDate} at ${selectedTiming}`;
     if (onFillInput) onFillInput(prompt);
   };
 
@@ -203,55 +304,124 @@ function MovieShowtimesInteractive({ result, onSelectSlot, onFillInput }) {
         ))}
       </div>
 
-      {/* Confirmation & Action Panel with Quantity Selector */}
+      {/* 💺 Interactive Seat Selection Grid */}
+      {selectedTiming && selectedTheater && (
+        <div className="mt-3.5 p-3.5 rounded-xl bg-bg-primary/95 border border-accent-cyan/40">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-accent-cyan-light block">
+                Choose Your Seats
+              </span>
+              <span className="text-[11px] text-text-secondary block">
+                Tap available seats to pick your preferred spots
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">
+                {selectedSeats.length} Selected
+              </span>
+            </div>
+          </div>
+
+          {/* Curved Cinema Screen */}
+          <div className="w-full flex flex-col items-center my-2.5">
+            <div className="w-4/5 h-1.5 bg-gradient-to-r from-transparent via-accent-cyan to-transparent rounded-full shadow-[0_0_12px_#06b6d4]" />
+            <span className="text-[8px] uppercase tracking-widest text-accent-cyan/80 font-mono mt-1 font-semibold">
+              CINEMA SCREEN (All Eyes This Way)
+            </span>
+          </div>
+
+          {/* Seat Layout Rows */}
+          <div className="space-y-1.5 my-3">
+            {CINEMA_SEAT_ROWS.map((rowObj) => (
+              <div key={rowObj.row} className="flex items-center justify-center gap-1 text-[10px]">
+                <span className="w-5 text-right font-mono font-bold text-text-muted mr-1">
+                  {rowObj.row}
+                </span>
+
+                <div className="flex items-center gap-1">
+                  {rowObj.seats.map((seat, seatIdx) => {
+                    const isBooked = seat.status === "booked";
+                    const isSelected = selectedSeats.includes(seat.id);
+
+                    return (
+                      <button
+                        key={seat.id}
+                        type="button"
+                        disabled={isBooked}
+                        onClick={() => handleSeatClick(seat.id, isBooked)}
+                        title={
+                          isBooked
+                            ? `Seat ${seat.id} (Booked / Sold Out)`
+                            : `Seat ${seat.id} (${rowObj.tier}) - Click to select`
+                        }
+                        className={`w-6 h-6 rounded flex items-center justify-center font-mono text-[9px] transition-all cursor-pointer ${
+                          seatIdx === 3 ? "mr-2.5" : ""
+                        } ${
+                          isBooked
+                            ? "bg-white/5 border border-white/5 text-text-muted/20 cursor-not-allowed"
+                            : isSelected
+                            ? "bg-gradient-to-br from-accent-cyan to-emerald-400 text-bg-primary font-bold border border-cyan-200 shadow-[0_0_8px_#06b6d4] scale-105"
+                            : "bg-white/5 hover:bg-accent-cyan/20 border border-white/10 hover:border-accent-cyan/40 text-text-secondary hover:text-white"
+                        }`}
+                      >
+                        {isBooked ? "✕" : seat.id.slice(1)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Seat Map Legend */}
+          <div className="flex items-center justify-center gap-4 pt-2 border-t border-white/10 text-[10px] text-text-muted">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded bg-white/10 border border-white/20" />
+              <span>Available</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded bg-accent-cyan border border-cyan-300 shadow-[0_0_6px_#06b6d4]" />
+              <span className="text-accent-cyan-light font-medium">Selected</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded bg-white/5 border border-white/5 text-text-muted/30 flex items-center justify-center text-[7px]">
+                ✕
+              </div>
+              <span>Sold Out</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation & Action Panel */}
       {selectedTiming && selectedTheater && (
         <div className="mt-3 p-3.5 rounded-xl bg-gradient-to-r from-accent-violet/20 to-accent-cyan/20 border border-accent-cyan/40">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] uppercase font-bold text-accent-cyan-light">
-                  Selected Booking
-                </span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-medium">
-                  🟢 {selectedTheaterObj?.availableSeats || 48} seats open
-                </span>
-              </div>
+              <span className="text-[10px] uppercase font-bold text-accent-cyan-light block">
+                Selected Reservation
+              </span>
               <p className="text-xs font-semibold text-white mt-0.5">
                 {result.movie} · {selectedTheater}
               </p>
               <p className="text-[11px] text-emerald-400 font-mono mt-0.5">
                 📅 {selectedDate} at {selectedTiming}
               </p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="text-[10px] text-text-muted">Seats:</span>
+                <span className="text-[11px] font-mono font-bold text-accent-cyan">
+                  {selectedSeats.length > 0 ? selectedSeats.join(", ") : "None chosen"}
+                </span>
+                <span className="text-[10px] text-text-muted">({count} Ticket{count > 1 ? "s" : ""})</span>
+              </div>
             </div>
 
-            {/* Ticket Quantity Selector & Pricing */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <div className="flex items-center gap-1.5 bg-bg-primary/80 border border-white/10 px-2 py-1 rounded-lg">
-                <span className="text-[10px] text-text-muted font-medium">Qty:</span>
-                <button
-                  type="button"
-                  onClick={() => setTicketsCount((prev) => Math.max(1, prev - 1))}
-                  className="w-5 h-5 rounded flex items-center justify-center bg-white/10 hover:bg-white/20 text-accent-cyan text-xs font-bold transition-all cursor-pointer"
-                  title="Decrease tickets"
-                >
-                  <Minus className="w-3 h-3" />
-                </button>
-                <span className="w-5 text-center text-xs font-mono font-bold text-white">
-                  {ticketsCount}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setTicketsCount((prev) => Math.min(10, prev + 1))}
-                  className="w-5 h-5 rounded flex items-center justify-center bg-white/10 hover:bg-white/20 text-accent-cyan text-xs font-bold transition-all cursor-pointer"
-                  title="Increase tickets"
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
-              </div>
-
-              <div className="text-right">
-                <span className="text-[9px] text-text-muted block">Total Price</span>
-                <span className="text-xs font-mono font-bold text-emerald-300">
+            {/* Total Price and Action Buttons */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="text-right mr-1">
+                <span className="text-[9px] text-text-muted block">Total Amount</span>
+                <span className="text-sm font-mono font-bold text-emerald-300">
                   ₹{totalPrice}
                 </span>
               </div>
@@ -259,8 +429,13 @@ function MovieShowtimesInteractive({ result, onSelectSlot, onFillInput }) {
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
+                  disabled={selectedSeats.length === 0}
                   onClick={handleConfirm}
-                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-accent-violet to-accent-cyan text-white text-xs font-bold shadow-lg hover:opacity-90 transition-all cursor-pointer flex items-center gap-1.5"
+                  className={`px-3 py-1.5 rounded-lg text-white text-xs font-bold shadow-lg transition-all flex items-center gap-1.5 ${
+                    selectedSeats.length === 0
+                      ? "bg-slate-700 opacity-50 cursor-not-allowed"
+                      : "bg-gradient-to-r from-accent-violet to-accent-cyan hover:opacity-90 cursor-pointer"
+                  }`}
                 >
                   <Ticket className="w-3.5 h-3.5" />
                   Confirm & Book
@@ -269,7 +444,7 @@ function MovieShowtimesInteractive({ result, onSelectSlot, onFillInput }) {
                   type="button"
                   onClick={handleEditInChat}
                   className="px-2 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 text-[11px] font-medium transition-all cursor-pointer"
-                  title="Populate chat box to edit seat count or details"
+                  title="Populate chat box to edit seat details"
                 >
                   Edit
                 </button>
@@ -922,14 +1097,6 @@ export default function ChatInterface() {
                   }`}
                 >
                   <span>{formatTimestamp(message.timestamp)}</span>
-                  {message.model && (
-                    <>
-                      <span>·</span>
-                      <span className="font-mono text-[9px] text-accent-cyan/80">
-                        {message.model}
-                      </span>
-                    </>
-                  )}
                 </div>
               </div>
             </motion.div>

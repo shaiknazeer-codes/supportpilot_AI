@@ -122,7 +122,7 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       lower.includes("book it") ||
       lower.includes("sure");
 
-    // Extract customer details and seat count
+    // Extract customer details and seat choices
     const emailMatch = userMessagesText.match(/[\w.-]+@[\w.-]+\.\w+/);
     const email = emailMatch ? emailMatch[0] : (context.customerEmail || "customer@example.com");
     const nameMatch =
@@ -130,20 +130,33 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       userMessagesText.match(/my name is ([A-Z][a-z]+ [A-Z][a-z]+|[A-Z][a-z]+)/i);
     const customerName = nameMatch ? (nameMatch[1] || nameMatch[0]) : (context.customerName || "Movie Guest");
     
-    const numWordMap = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
-    const seatsMatch =
-      userMessagesText.match(/(\d+)\s*(tickets?|seats?|people|persons?)/i) ||
-      userMessagesText.match(/(one|two|three|four|five|six|seven|eight|nine|ten)\s*(tickets?|seats?|people|persons?)/i) ||
-      userMessagesText.match(/quantity\s*[:=]?\s*(\d+)/i) ||
-      userMessagesText.match(/(\d+)\s*(pass|passes)/i);
+    // Extract chosen seat identifiers (e.g., E4, E5, D3, F2)
+    const seatMatches = [...userMessagesText.matchAll(/\b([A-Fa-f][1-8])\b/g)].map((m) => m[1].toUpperCase());
+    const uniqueChosenSeats = Array.from(new Set(seatMatches));
+
     let seatsCount = 2;
-    if (seatsMatch) {
-      const parsed = parseInt(seatsMatch[1], 10);
-      if (!isNaN(parsed) && parsed > 0) {
-        seatsCount = parsed;
-      } else if (numWordMap[seatsMatch[1]?.toLowerCase()]) {
-        seatsCount = numWordMap[seatsMatch[1].toLowerCase()];
+    let assignedSeats = "E4, E5";
+
+    if (uniqueChosenSeats.length > 0) {
+      seatsCount = uniqueChosenSeats.length;
+      assignedSeats = uniqueChosenSeats.join(", ");
+    } else {
+      const numWordMap = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+      const seatsMatch =
+        userMessagesText.match(/(\d+)\s*(tickets?|seats?|people|persons?)/i) ||
+        userMessagesText.match(/(one|two|three|four|five|six|seven|eight|nine|ten)\s*(tickets?|seats?|people|persons?)/i) ||
+        userMessagesText.match(/quantity\s*[:=]?\s*(\d+)/i) ||
+        userMessagesText.match(/(\d+)\s*(pass|passes)/i);
+      if (seatsMatch) {
+        const parsed = parseInt(seatsMatch[1], 10);
+        if (!isNaN(parsed) && parsed > 0) {
+          seatsCount = parsed;
+        } else if (numWordMap[seatsMatch[1]?.toLowerCase()]) {
+          seatsCount = numWordMap[seatsMatch[1].toLowerCase()];
+        }
       }
+      const defaultSeats = ["E4", "E5", "E3", "E6", "E2", "E7", "E1", "E8"];
+      assignedSeats = defaultSeats.slice(0, seatsCount).join(", ");
     }
 
     // STEP 1: If movie is not specified, ask which movie and list currently playing movies
@@ -188,7 +201,7 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
           .join("\n\n") +
         `\n\nWhich Indore cinema location or theater would you prefer?`;
     }
-    // STEP 3: Once theater is chosen, show available show timings and ask quantity
+    // STEP 3: Once theater is chosen, show available show timings and seat layout
     else if (!selectedTiming) {
       const toolResult = await executeToolCall(
         "getMovieShowtimes",
@@ -208,11 +221,15 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       reply =
         `Here are the available show timings for ${selectedMovie.title} at ${selectedTheater.name} (${selectedTheater.location}):\n\n` +
         `📅 Available Dates: Today, Tomorrow, Wed 11 Nov\n` +
-        `💺 Available Seats: 🟢 ${selectedTheater.availableSeats || 48} seats currently available (${selectedTheater.price} per ticket)\n\n` +
+        `💺 Available Seats: 🟢 ${selectedTheater.availableSeats || 40} seats currently open (${selectedTheater.price} per ticket)\n` +
+        `• Row F (VIP Recliner): F2, F3, F4, F5, F6, F7, F8\n` +
+        `• Row E (Prime Club): E1, E2, E3, E4, E5, E6, E7, E8\n` +
+        `• Row D (Gold Executive): D3, D4, D5, D6, D7, D8\n` +
+        `• Row C (Gold Executive): C1, C2, C3, C4, C5, C6, C8\n\n` +
         selectedTheater.timings
           .map((tm) => `🕒 ${tm} (${selectedTheater.formats.join(", ")})`)
           .join("\n") +
-        `\n\nHow many tickets would you like to book, and which showtime works best for you?`;
+        `\n\nPlease select your preferred showtime and choose your seats using the interactive seat map below, or reply with your seats (e.g. E4 and E5)!`;
     }
     // STEP 4: Confirm booking details
     else if (!isConfirmed) {
@@ -229,9 +246,9 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
         `• Movie: ${selectedMovie.title}\n` +
         `• Cinema: ${selectedTheater.name} (${selectedTheater.location})\n` +
         `• Date & Showtime: ${selectedDate} at ${selectedTiming}\n` +
-        `• Quantity: ${seatsCount} Ticket${seatsCount > 1 ? "s" : ""} (Available Seats: 🟢 ${selectedTheater.availableSeats || 48})\n` +
+        `• Selected Seats: ${assignedSeats} (${seatsCount} Ticket${seatsCount > 1 ? "s" : ""})\n` +
         `• Ticket Price: ${selectedTheater.price} each · Total Amount: ₹${totalPrice}\n\n` +
-        `To confirm and secure your ${seatsCount} ticket(s) in our database, please reply 'Confirm' (or provide your name and email).`;
+        `To confirm and secure your seats (${assignedSeats}) in our database, please reply 'Confirm' (or provide your name and email).`;
     }
     // STEP 5: Book ticket in MongoDB
     else {
@@ -252,6 +269,7 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
           showtime: selectedTiming,
           showDate: selectedDate,
           seatsCount,
+          seatNumbers: assignedSeats,
           customerName,
           customerEmail: email,
           userConfirmed: true,
@@ -267,6 +285,7 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
           theater: selectedTheater.name,
           showtime: selectedTiming,
           seatsCount,
+          seatNumbers: assignedSeats,
           customerName,
           customerEmail: email,
         },
@@ -282,7 +301,7 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
           `📍 Cinema: ${selectedTheater.name} (${selectedTheater.location})\n` +
           `📅 Date & Showtime: ${selectedDate} at ${selectedTiming}\n` +
           `🎟️ Quantity: ${seatsCount} Ticket${seatsCount > 1 ? "s" : ""}\n` +
-          `💺 Seats: ${toolResult.seatNumbers || `Row F (Seats 1-${seatsCount})`}\n` +
+          `💺 Confirmed Seats: ${assignedSeats}\n` +
           `💰 Total Paid: ₹${totalPrice}\n` +
           `📧 A digital ticket pass has been queued for ${email}.\n\nEnjoy your movie! 🍿`;
       } else {
@@ -583,7 +602,7 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
       timestamp: new Date().toISOString(),
     },
     toolActions: executedToolActions,
-    model: `${activeModel} (Autonomous Engine Fallback)`,
+    model: "SupportPilot AI",
   };
 }
 
