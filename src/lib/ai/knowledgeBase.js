@@ -282,7 +282,7 @@ export const HEALTHCARE_SPECIALTIES = [
     name: "General Medicine / Physician",
     shortName: "General Physician",
     description: "Fever, Viral Infection, Cough, Diabetes, General Health Checkup, Hypertension",
-    keywords: ["general", "physician", "medicine", "fever", "cold", "flu", "cough", "diabetes", "doctor", "checkup"],
+    keywords: ["general", "physician", "medicine", "fever", "cold", "flu", "cough", "diabetes", "general physician", "checkup"],
   },
   {
     id: "neurology",

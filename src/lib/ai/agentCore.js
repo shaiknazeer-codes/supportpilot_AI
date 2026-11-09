@@ -327,21 +327,31 @@ export async function handleAutonomousFallback(userPrompt, activeModel = "Autono
     userMessagesText.includes("neuro") ||
     userMessagesText.includes("pediatric") ||
     userMessagesText.includes("gynec") ||
-    userMessagesText.includes("ent") ||
-    userMessagesText.includes("eye") ||
+    /\bent\b/i.test(userMessagesText) ||
+    /\beye\b/i.test(userMessagesText) ||
     userMessagesText.includes("dental") ||
     HOSPITAL_CATALOG.some(
       (h) => userMessagesText.includes(h.name.toLowerCase()) || userMessagesText.includes(h.id)
     ) ||
     ((lower.includes("schedule") || lower.includes("appointment") || lower.includes("slot")) && !isMovieIntent)
   ) {
+    // Helper to test whole word or token safely
+    const matchSpecialtyKeyword = (text, kw) => {
+      if (!text || !kw) return false;
+      if (kw.length <= 4) {
+        return new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:s)?\\b`, "i").test(text);
+      }
+      return text.toLowerCase().includes(kw.toLowerCase());
+    };
+
     // 1. Identify if a medical field/specialty has been chosen by the customer
     let selectedSpecialty = null;
     for (const s of HEALTHCARE_SPECIALTIES) {
       if (
-        userMessagesText.includes(s.id) ||
-        userMessagesText.includes(s.shortName.toLowerCase()) ||
-        s.keywords.some((k) => userMessagesText.includes(k))
+        matchSpecialtyKeyword(userMessagesText, s.id) ||
+        matchSpecialtyKeyword(userMessagesText, s.shortName) ||
+        userMessagesText.includes(s.name.toLowerCase()) ||
+        s.keywords.some((k) => matchSpecialtyKeyword(userMessagesText, k))
       ) {
         selectedSpecialty = s;
         break;

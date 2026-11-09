@@ -49,8 +49,8 @@ function cleanMessageText(text) {
 
 const SUGGESTED_PROMPTS = [
   {
-    title: "🏥 Indore Hospital Consultation",
-    prompt: "I want to book an appointment with a skin doctor at a hospital in Indore. What are the available dates and timings?",
+    title: "🏥 Book an Appointment",
+    prompt: "I want to book an appointment",
     category: "Healthcare",
   },
   {
@@ -472,7 +472,7 @@ function HospitalConsultationInteractive({ result, onSelectSlot, onFillInput }) 
   ];
 
   const [selectedSpecialty, setSelectedSpecialty] = useState(
-    result.selectedSpecialty || "Dermatology / Skin Specialist"
+    result.selectedSpecialty || null
   );
   const [selectedHospital, setSelectedHospital] = useState(
     result.hospital || (result.hospitals && result.hospitals[0]?.name) || "Bombay Hospital Indore"
@@ -501,17 +501,24 @@ function HospitalConsultationInteractive({ result, onSelectSlot, onFillInput }) 
 
   let doctorName = "Specialist Consultant";
   if (currentHospitalObj.doctors) {
-    const matchKey = Object.keys(currentHospitalObj.doctors).find(
-      (k) =>
-        k.toLowerCase().includes(selectedSpecialty.toLowerCase()) ||
-        selectedSpecialty.toLowerCase().includes(k.toLowerCase())
-    );
-    doctorName = matchKey ? currentHospitalObj.doctors[matchKey] : Object.values(currentHospitalObj.doctors)[0];
+    if (selectedSpecialty) {
+      const matchKey = Object.keys(currentHospitalObj.doctors).find(
+        (k) =>
+          k.toLowerCase().includes(selectedSpecialty.toLowerCase()) ||
+          selectedSpecialty.toLowerCase().includes(k.toLowerCase())
+      );
+      doctorName = matchKey ? currentHospitalObj.doctors[matchKey] : Object.values(currentHospitalObj.doctors)[0];
+    } else {
+      doctorName = Object.values(currentHospitalObj.doctors)[0] || "Specialist Consultant";
+    }
   }
 
   const handleTimingClick = (hospName, timing) => {
     setSelectedHospital(hospName);
     setSelectedTiming(timing);
+    if (!selectedSpecialty) {
+      setSelectedSpecialty("General Medicine / Physician");
+    }
   };
 
   const handleSpecialtyClick = (specName) => {
@@ -528,13 +535,15 @@ function HospitalConsultationInteractive({ result, onSelectSlot, onFillInput }) 
 
   const handleConfirm = () => {
     if (!selectedHospital || !selectedTiming) return;
-    const prompt = `Please book a consultation with ${doctorName} (${selectedSpecialty}) at ${selectedHospital} on ${selectedDate} at ${selectedTiming}. Confirm booking.`;
+    const specialtyText = selectedSpecialty || "General Medicine / Physician";
+    const prompt = `Please book a consultation with ${doctorName} (${specialtyText}) at ${selectedHospital} on ${selectedDate} at ${selectedTiming}. Confirm booking.`;
     if (onSelectSlot) onSelectSlot(prompt);
   };
 
   const handleEditInChat = () => {
     if (!selectedHospital || !selectedTiming) return;
-    const prompt = `Book appointment with ${doctorName} for ${selectedSpecialty} at ${selectedHospital} on ${selectedDate} at ${selectedTiming}`;
+    const specialtyText = selectedSpecialty || "General Medicine / Physician";
+    const prompt = `Book appointment with ${doctorName} for ${specialtyText} at ${selectedHospital} on ${selectedDate} at ${selectedTiming}`;
     if (onFillInput) onFillInput(prompt);
   };
 
@@ -559,8 +568,9 @@ function HospitalConsultationInteractive({ result, onSelectSlot, onFillInput }) 
         <div className="flex items-center gap-1.5 flex-wrap">
           {specialties.map((s) => {
             const isSelected =
-              selectedSpecialty.toLowerCase().includes(s.shortName.toLowerCase()) ||
-              selectedSpecialty.toLowerCase() === s.name.toLowerCase();
+              Boolean(selectedSpecialty) &&
+              (selectedSpecialty.toLowerCase().includes(s.shortName.toLowerCase()) ||
+                selectedSpecialty.toLowerCase() === s.name.toLowerCase());
             return (
               <button
                 key={s.id}
@@ -606,7 +616,7 @@ function HospitalConsultationInteractive({ result, onSelectSlot, onFillInput }) 
       <div className="space-y-2.5">
         {(result.hospitals || [currentHospitalObj]).map((h) => {
           const isHospSelected = selectedHospital === h.name;
-          const docKey = h.doctors
+          const docKey = selectedSpecialty && h.doctors
             ? Object.keys(h.doctors).find((k) =>
                 k.toLowerCase().includes(selectedSpecialty.toLowerCase()) ||
                 selectedSpecialty.toLowerCase().includes(k.toLowerCase())
@@ -680,7 +690,7 @@ function HospitalConsultationInteractive({ result, onSelectSlot, onFillInput }) 
                 Selected Appointment
               </span>
               <p className="text-xs font-semibold text-white mt-0.5">
-                {doctorName} · {selectedSpecialty}
+                {doctorName} {selectedSpecialty ? `· ${selectedSpecialty}` : ""}
               </p>
               <p className="text-[11px] text-text-muted mt-0.5">
                 {selectedHospital}

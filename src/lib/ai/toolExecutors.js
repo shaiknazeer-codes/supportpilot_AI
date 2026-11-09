@@ -776,11 +776,20 @@ export async function executeGetHospitalsAndSlots(args = {}) {
   let matchedSpecialty = null;
   if (department && typeof department === "string" && department.trim()) {
     const deptLower = department.trim().toLowerCase();
+    const matchKeyword = (text, kw) => {
+      if (!text || !kw) return false;
+      if (kw.length <= 4) {
+        return new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:s)?\\b`, "i").test(text);
+      }
+      return text.toLowerCase().includes(kw.toLowerCase());
+    };
+
     matchedSpecialty = HEALTHCARE_SPECIALTIES.find(
       (s) =>
-        s.name.toLowerCase().includes(deptLower) ||
-        s.shortName.toLowerCase().includes(deptLower) ||
-        s.keywords.some((k) => deptLower.includes(k) || k.includes(deptLower))
+        matchKeyword(deptLower, s.id) ||
+        matchKeyword(deptLower, s.shortName) ||
+        deptLower.includes(s.name.toLowerCase()) ||
+        s.keywords.some((k) => matchKeyword(deptLower, k))
     );
   }
 
