@@ -1456,7 +1456,6 @@ export default function ChatInterface() {
 
         <div className="mt-2 flex items-center justify-between text-[11px] text-text-muted px-1">
           <span>Active Tools: checkAvailability · createBooking · createTicket · recordLead · escalateToHuman</span>
-          <span className="hidden sm:inline">MongoDB Persistent Storage</span>
         </div>
       </div>
     </div>
