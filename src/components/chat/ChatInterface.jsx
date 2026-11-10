@@ -1226,7 +1226,7 @@ export default function ChatInterface() {
               </h2>
             </div>
             <p className="text-xs text-text-muted">
-              Live Tool Calling: Booking · Tickets · Leads · Escalations · MongoDB
+              Live Tool Calling: Booking · Tickets · Leads · Escalations
             </p>
           </div>
         </div>
