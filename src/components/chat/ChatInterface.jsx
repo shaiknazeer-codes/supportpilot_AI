@@ -1224,9 +1224,6 @@ export default function ChatInterface() {
               <h2 className="text-sm font-semibold text-text-primary tracking-tight">
                 SupportPilot AI Operations Agent
               </h2>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                Phase 4 Real Tools
-              </span>
             </div>
             <p className="text-xs text-text-muted">
               Live Tool Calling: Booking · Tickets · Leads · Escalations · MongoDB
